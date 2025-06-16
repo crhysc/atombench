@@ -7,23 +7,28 @@ stages:
       hash: md5
       md5: 875e60f4966616ae798da23d79f353f9
       size: 446
+      isexec: true
     outs:
     - path: DS-A.pk.bz2
       hash: md5
       md5: 3bd95aac17cf87636195c174e23b4444
       size: 1981755
+      isexec: true
     - path: DS-B.pk.bz2
       hash: md5
       md5: 1b662219606bc8faa1ecc4ece2fbcc78
       size: 271220
+      isexec: true
     - path: dataset1.csv
       hash: md5
       md5: b2eaae6c6f558b29eaa305f686f88866
       size: 10898472
+      isexec: true
     - path: dataset2.csv
       hash: md5
       md5: c953558a600a92b925b04693d3084e1f
       size: 1463809
+      isexec: true
   agpt:
     cmd: bash scripts/run_id_prop.sh
     deps:
@@ -31,6 +36,7 @@ stages:
       hash: md5
       md5: 0ecf63a06ebbf4e55eeb217ddbaf51ed
       size: 312
+      isexec: true
     outs:
     - path: agpt_alexandria
       hash: md5
@@ -44,6 +50,7 @@ stages:
       hash: md5
       md5: 085216160f6c95685b2c34dd25ebae01
       size: 611
+      isexec: true
     outs:
     - path: ../models/cdvae/data/alexandria
       hash: md5
@@ -57,9 +64,10 @@ stages:
       hash: md5
       md5: 35fb973aa80a5cbce475a6c1b42d1f28
       size: 589
+      isexec: true
     outs:
     - path: ../models/flowmm/data/alexandria
       hash: md5
-      md5: 728e4dad586adbf2d045482abfd2c9e0.dir
+      md5: 96afb2e7de7945dcb187a1c553a30073.dir
       size: 2119979
       nfiles: 3

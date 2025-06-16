@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-mkdir -p ../models/cdvae/data/alexandria/
+mkdir -p /lab/mml/kipp/677/jarvis/rhys/benchmarks/models/cdvae/data/alexandria/
 uv pip install jarvis-tools pymatgen numpy pandas tqdm
 python scripts/generate_data_cdvae.py \
     --csv-files dataset1.csv dataset2.csv \
