@@ -1,21 +1,24 @@
 stages:
   agpt:
-    cmd: bash scripts/run_id_prop.sh
+    cmd: bash scripts/run_atomgpt_data.sh
     deps:
       - scripts/run_id_prop.sh
+      - scripts/data_preprocess.py
     outs:
-      - agpt_tc_supercon
+      - atomgpt_data
   cdvae:
     cmd: bash scripts/run_cdvae_data.sh
     deps:
       - scripts/run_cdvae_data.sh
+      - scripts/data_preprocess.py
     outs:
       - ../models/cdvae/data/supercon:
-          cache: false      
+          cache: false
   flowmm:
     cmd: bash scripts/run_flowmm_data.sh
     deps:
       - scripts/run_flowmm_data.sh
+      - scripts/data_preprocess.py
     outs:
       - ../models/flowmm/data/supercon:
           cache: false
