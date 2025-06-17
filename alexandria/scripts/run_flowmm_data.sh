@@ -1,10 +1,6 @@
 #!/bin/bash
 # run data preprocessor
-python scripts/supercon_preprocess.py \
-    --csv-files dataset1.csv dataset2.csv \
-    --id-key mat_id --target Tc \
-    --train-ratio 0.8 --val-ratio 0.1 --test-ratio 0.1 \
-    --seed 123 --max-size 1000
+python alexandria_preprocess.py flowmm --csv-files dataset1.csv dataset2.csv --output . --seed 123
 
 # move everything to the right spot
 mkdir -p /lab/mml/kipp/677/jarvis/rhys/benchmarks/models/flowmm/data/alexandria

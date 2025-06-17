@@ -2,15 +2,7 @@
 set -e
 mkdir -p /lab/mml/kipp/677/jarvis/rhys/benchmarks/models/cdvae/data/alexandria/
 uv pip install jarvis-tools pymatgen numpy pandas tqdm
-python scripts/generate_data_cdvae.py \
-    --csv-files dataset1.csv dataset2.csv \
-    --id-key mat_id \
-    --target Tc \
-    --max-size 1000 \
-    --val-ratio 0.1 \
-    --test-ratio 0.1 \
-    --split-seed 123 \
-    --output-dir .
+python alexandria_preprocess.py cdvae  --csv-files dataset1.csv dataset2.csv --output . --seed 123
 python - <<'PYCODE'
 import os
 path = "../models/cdvae/data/alexandria"
