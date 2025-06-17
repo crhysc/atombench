@@ -46,10 +46,15 @@ stages:
   cdvae:
     cmd: bash scripts/run_cdvae_data.sh
     deps:
+    - path: scripts/alexandria_preprocess.py
+      hash: md5
+      md5: ee6b83fdf7f67e6b68a2b4ceea207ab5
+      size: 10592
+      isexec: true
     - path: scripts/run_cdvae_data.sh
       hash: md5
-      md5: 085216160f6c95685b2c34dd25ebae01
-      size: 611
+      md5: 8acd606dd1796c39e394a8bea1d5a704
+      size: 556
       isexec: true
     outs:
     - path: ../models/cdvae/data/alexandria
@@ -60,10 +65,15 @@ stages:
   flowmm:
     cmd: bash scripts/run_flowmm_data.sh
     deps:
+    - path: scripts/alexandria_preprocess.py
+      hash: md5
+      md5: ee6b83fdf7f67e6b68a2b4ceea207ab5
+      size: 10592
+      isexec: true
     - path: scripts/run_flowmm_data.sh
       hash: md5
-      md5: 35fb973aa80a5cbce475a6c1b42d1f28
-      size: 589
+      md5: 125cfce6853d769f9f653aa0dfd38302
+      size: 600
       isexec: true
     outs:
     - path: ../models/flowmm/data/alexandria
@@ -71,3 +81,32 @@ stages:
       md5: 96afb2e7de7945dcb187a1c553a30073.dir
       size: 2119979
       nfiles: 3
+  atomgpt:
+    cmd: bash scripts/run_atomgpt_data.sh
+    deps:
+    - path: scripts/alexandria_preprocess.py
+      hash: md5
+      md5: ee6b83fdf7f67e6b68a2b4ceea207ab5
+      size: 10592
+      isexec: true
+    - path: scripts/run_atomgpt_data.sh
+      hash: md5
+      md5: 24c363f94e2c0fd70e8d85af560894fe
+      size: 259
+      isexec: true
+    outs:
+    - path: atomgpt_data
+      hash: md5
+      md5: f1b9598d08c147eef8fb16ad7c090ee4.dir
+      size: 232303
+      nfiles: 1001
+  check:
+    cmd: python scripts/checker.py --atomgpt-dir ./atomgpt_data --cdvae-dir 
+      ../models/cdvae/data/alexandria --flowmm-dir 
+      ../models/flowmm/data/alexandria --strict-order
+    deps:
+    - path: scripts/checker.py
+      hash: md5
+      md5: e08081859d259b50f7039cf2d00601ae
+      size: 3633
+      isexec: true
