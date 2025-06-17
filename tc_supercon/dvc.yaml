@@ -1,8 +1,8 @@
 stages:
-  agpt:
+  atomgpt:
     cmd: bash scripts/run_atomgpt_data.sh
     deps:
-      - scripts/run_id_prop.sh
+      - scripts/run_atomgpt_data.sh
       - scripts/data_preprocess.py
     outs:
       - atomgpt_data
