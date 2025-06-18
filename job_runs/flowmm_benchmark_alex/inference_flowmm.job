@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=flow_alex
-#SBATCH --output=/lab/mml/kipp/677/jarvis/rhys/benchmarks/job_runs/flowmm_benchmark_test/fl_studio.out
+#SBATCH --output=/lab/mml/kipp/677/jarvis/rhys/benchmarks/job_runs/flowmm_benchmark_alex/fl_studio.out
 #SBATCH --partition=batch
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
