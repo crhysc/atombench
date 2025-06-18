@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=cdvae_tc            
+#SBATCH --job-name=cdvae_alex            
 #SBATCH --output=/lab/mml/kipp/677/jarvis/rhys/benchmarks/job_runs/cdvae_benchmark_alex/fl_studio.out
 #SBATCH --partition=batch
 #SBATCH --nodes=1                         
@@ -26,7 +26,7 @@ source wandb_api_key.sh
 
 echo "running inference"
 python /lab/mml/kipp/677/jarvis/rhys/benchmarks/models/cdvae/scripts/evaluate.py \
-    --model_path /lab/mml/kipp/677/jarvis/rhys/benchmarks/job_runs/cdvae_benchmark_alex/hydra_outputs/singlerun/2025-06-06/alexandria \
+    --model_path /lab/mml/kipp/677/jarvis/rhys/benchmarks/job_runs/cdvae_benchmark_alex/hydra_outputs/singlerun/2025-06-18/alexandria \
     --tasks recon \
     --num_evals 1
 
