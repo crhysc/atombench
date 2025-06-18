@@ -155,10 +155,16 @@ class BaseFactory(ABC):
         rel_paths = []
         for idx in indices:
             row = df.iloc[idx]
-            jid = row["material_id"]
-            fname = f"{jid}.vasp"
-            Poscar(row["atoms"]).write_file(self.out_dir / fname)
+            fname = f"{row['material_id']}.vasp"
+            out_path = self.out_dir / fname
+
+            # write the POSCAR
+            with open(out_path, "w") as fh:
+                fh.write(str(Poscar(row["atoms"])))
+
+            # this line must be **inside** the loop
             rel_paths.append(fname)
+
         return rel_paths
 
     @abstractmethod
