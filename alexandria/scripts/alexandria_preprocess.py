@@ -163,21 +163,20 @@ class BaseFactory(ABC):
 
     # common helper: write POSCARs, return list of relative paths in given order
     def _write_poscars(self, df: pd.DataFrame, indices: List[int]) -> List[str]:
-        rel_paths = []
-        for idx in indices:
-            row = df.iloc[idx]
-            fname = f"{row['material_id']}.vasp"
-            out_path = self.out_dir / fname
+        rel_paths: List[str] = []
 
-            # write the POSCAR
-            with open(out_path, "w") as fh:
-                fh.write(str(Poscar(row["atoms"])))
+        # ① change CWD just for this block
+        with _pushd(self.out_dir):
+            for idx in indices:
+                row   = df.iloc[idx]
+                fname = f"{row['material_id']}.vasp"
 
-            # this line must be **inside** the loop
-            rel_paths.append(fname)
+                # ② let Jarvis write; both copies now end up *here*
+                Poscar(row["atoms"]).write_file(fname)
+
+                rel_paths.append(fname)
 
         return rel_paths
-
     @abstractmethod
     def dump(self, df: pd.DataFrame, id_train: List[int], id_val: List[int], id_test: List[int]):
         ...
