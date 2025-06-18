@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=agpt_tc            
+#SBATCH --job-name=agpt_alex
 #SBATCH --output=/lab/mml/kipp/677/jarvis/rhys/benchmarks/job_runs/agpt_benchmark_alex/fl_studio.out
 #SBATCH --partition=batch
 #SBATCH --nodes=1                         
