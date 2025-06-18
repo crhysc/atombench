@@ -173,7 +173,7 @@ plt.title("(c)")
 # plt.ylabel('Materials count')
 
 
-/lab/mml/kipp/677/jarvis/rhys/benchmarks/job_runs/agpt_benchmark_jarvis# plt.subplot(the_grid[1, 0])
+# plt.subplot(the_grid[1, 0])
 # plt.hist(x_alpha,bins=np.arange(0,180,10),label='target_alpha', color='tab:blue', alpha=0.6)
 # plt.hist(y_alpha,bins=np.arange(0,180,10),label='predicted_alpha', color='plum', alpha=0.6)
 # plt.xlabel('alpha')
