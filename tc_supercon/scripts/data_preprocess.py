@@ -127,17 +127,20 @@ class DataPrepFactory(ABC):
         self.out_dir.mkdir(parents=True, exist_ok=True)
 
     # Shared step – always write POSCARs
-    def write_poscar_files(self, df: pd.DataFrame, id_all: List[int]) -> List[str]:
-        """Write POSCARs for every index in *id_all*.  Returns relative paths."""
+    def _write_poscars(self, df: pd.DataFrame, indices: List[int]) -> List[str]:
         rel_paths: List[str] = []
-        
+
+        # change directory temporarily → CWD becomes self.out_dir
         with _pushd(self.out_dir):
-            for idx in id_all:
-                row = df.iloc[idx]
-                fname = f"{row['material_id']}.vasp"
-                with open(fname, "w") as fh:
-                    fh.write(str(Poscar(row["atoms_j"])))
+            for idx in indices:
+                jid = df.iloc[idx]["material_id"]
+                fname = f"{jid}.vasp"
+
+                # Jarvis now writes both copies *inside* self.out_dir,
+                # which are actually the same file, so only ONE file appears.
+                Poscar(df.iloc[idx]["atoms"]).write_file(fname)
                 rel_paths.append(fname)
+
         return rel_paths
 
     @abstractmethod
