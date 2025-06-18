@@ -127,7 +127,7 @@ class DataPrepFactory(ABC):
         self.out_dir.mkdir(parents=True, exist_ok=True)
 
     # Shared step – always write POSCARs
-    def _write_poscars(self, df: pd.DataFrame, indices: List[int]) -> List[str]:
+    def write_poscar_files(self, df: pd.DataFrame, indices: List[int]) -> List[str]:
         rel_paths: List[str] = []
 
         # change directory temporarily → CWD becomes self.out_dir
@@ -138,7 +138,7 @@ class DataPrepFactory(ABC):
 
                 # Jarvis now writes both copies *inside* self.out_dir,
                 # which are actually the same file, so only ONE file appears.
-                Poscar(df.iloc[idx]["atoms"]).write_file(fname)
+                Poscar(df.iloc[idx]["atoms_j"]).write_file(fname)
                 rel_paths.append(fname)
 
         return rel_paths
