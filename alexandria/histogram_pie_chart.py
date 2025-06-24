@@ -132,7 +132,7 @@ def create_tc_histogram(
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.hist(
         temps,
-        bins=5,
+        bins=3,
         density=False,
         cumulative=False,
         alpha=0.6,
@@ -159,11 +159,19 @@ def create_tc_histogram(
 def create_composition_pie_chart(df: pd.DataFrame, output_dir: Path) -> None:
     element_counts = df["elements"].explode().value_counts()
 
+    # Keep the 25 most frequent elements, lump the rest under “Other”
+    top25 = element_counts.iloc[:25].copy()
+    others = element_counts.iloc[25:].sum()
+    if others:
+        top25.loc["Other"] = others
+
+    counts = top25.values
+    labels = [f"{el} ({cnt})" for el, cnt in zip(top25.index, counts)]
+
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.pie(
-        element_counts.to_numpy(),
-        labels=element_counts.index.to_list(),
-        autopct="%1.1f%%",
+        counts,
+        labels=labels,           # ← length now matches counts
         shadow=True,
         startangle=90,
         wedgeprops={"edgecolor": "w", "linewidth": 1},
@@ -189,7 +197,7 @@ def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--csv-files", nargs="+", required=True, help="Input CSV paths")
     common.add_argument("--id-key", default="mat_id", help="Column with unique IDs")
-    common.add_argument("--target", dest="target_key", 
+    common.add_argument("--target", dest="target_key",
                         default="Tc", help="Target column")
     common.add_argument("--structure-key", dest="struct_key", default="structure",
                         help="Column that stores the pymatgen Structure dict")
