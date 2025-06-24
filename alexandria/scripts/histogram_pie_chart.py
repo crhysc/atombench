@@ -164,8 +164,8 @@ def create_composition_pie_chart(df: pd.DataFrame, output_dir: Path) -> None:
         top35.loc["Other"] = others
     (output_dir / "element_counts.csv").parent.mkdir(parents=True, exist_ok=True)
     top35.to_csv(output_dir / "element_counts.csv", header=["count"])
-    counts = top25.values
-    labels = top25.index.tolist()
+    counts = top35.values
+    labels = top35.index.tolist()
     fig, ax = plt.subplots(figsize=(10, 10))
     ax.pie(
         counts,
@@ -178,7 +178,6 @@ def create_composition_pie_chart(df: pd.DataFrame, output_dir: Path) -> None:
         textprops={"fontsize": 12},
     )
     ax.axis("equal")
-    plt.title("Number of Elements in the Alexandria Tc Dataset")
 
     (output_dir / "alex_composition_pie_chart.pdf").parent.mkdir(
         parents=True, exist_ok=True
