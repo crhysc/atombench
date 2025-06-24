@@ -219,9 +219,6 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[List[str]] = None):
     args = build_parser().parse_args(argv)
 
-    csv_files = [Path(p).expanduser().resolve() for p in args.csv_files]
-    print(f"CSV files: {', '.join(str(p) for p in csv_files)}")
-
     # 1) Collect dataset
     df = collect_records(
         dataset_name=args.dataset,
