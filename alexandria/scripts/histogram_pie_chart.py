@@ -188,15 +188,25 @@ def create_composition_pie_chart(df: pd.DataFrame, output_dir: Path) -> None:
 def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--csv-files", nargs="+", required=True, help="Input CSV paths")
+    common.add_argument("--id-key", default="mat_id", help="Column with unique IDs")
+    common.add_argument("--target", dest="target_key", 
+                        default="Tc", help="Target column")
+    common.add_argument("--structure-key", dest="struct_key", default="structure",
+                        help="Column that stores the pymatgen Structure dict")
     common.add_argument("--output", required=True, help="Output directory")
+    common.add_argument("--max-size", type=int, default=None)
+    common.add_argument("--seed", type=int, default=123)
+    common.add_argument("--val-ratio", type=float, default=0.1)
+    common.add_argument("--test-ratio", type=float, default=0.1)
 
     return argparse.ArgumentParser(
-        prog="histogram_pie_chart.py",
+        prog="alexandria_preprocess",
         parents=[common],
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=textwrap.dedent(
-            """
-		make Tc histogram and composition pie chart PDFs"
+            """\
+            Pre-process Alexandria CSVs into model-specific formats while
+            sharing a single deterministic train/val/test split.
             """
         ),
     )
