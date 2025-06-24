@@ -1,64 +1,31 @@
 #!/usr/bin/env python3
-"""
-Unified preprocessing for Alexandria CSV superconductivity data → AtomGPT, CDVAE, FlowMM.
-
-The interface mirrors the earlier JARVIS‐based script – just swap
-`data_preprocess.py` for `alexandria_preprocess.py`.
-
-Example
--------
-# AtomGPT outputs in ./atomgpt_csv
-python alexandria_preprocess.py atomgpt \
-       --csv-files alex1.csv alex2.csv \
-       --output ./atomgpt_csv \
-       --max-size 2000 --seed 3407
-
-# CDVAE outputs in ./cdvae_csv
-python alexandria_preprocess.py cdvae   --csv-files alex1.csv alex2.csv --output ./cdvae_csv
-
-# FlowMM outputs in ./flowmm_csv (same split!)
-python alexandria_preprocess.py flowmm  --csv-files alex1.csv alex2.csv --output ./flowmm_csv
-
-Options like --val-ratio, --test-ratio, --seed, --target, --id-key behave the
-same across sub‑commands – use the *same* values to guarantee identical test
-sets.
-"""
 from __future__ import annotations
 
-import os
+###############################################################################
+# Imports
+###############################################################################
 import argparse
 import ast
 import hashlib
-import json
 import random
 import textwrap
-from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from pymatgen.core import Structure
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from jarvis.core.atoms import pmg_to_atoms, Atoms
-from jarvis.io.vasp.inputs import Poscar
 from tqdm import tqdm
-from contextlib import contextmanager
 
-@contextmanager
-def _pushd(path: Path):
-    prev = os.getcwd()
-    os.chdir(path)
-    try:
-        yield
-    finally:
-        os.chdir(prev)
-
-################################################################################
+###############################################################################
 # General helpers
-################################################################################
-
-def deterministic_split(n: int, val_ratio: float, test_ratio: float, seed: int) -> Tuple[List[int], List[int], List[int]]:
+###############################################################################
+def deterministic_split(
+    n: int, val_ratio: float, test_ratio: float, seed: int
+) -> Tuple[List[int], List[int], List[int]]:
     idx = list(range(n))
     random.seed(seed)
     random.shuffle(idx)
@@ -92,21 +59,22 @@ def canonicalise(pmg: Structure, symprec: float = 0.1):
         cif_conv, spg_raw, spg_conv = "", -1, -1
     return cif_raw, cif_conv, spg_raw, spg_conv
 
-################################################################################
+###############################################################################
 # Dataset collection
-################################################################################
-
+###############################################################################
 def collect_records_from_csv(
     csv_files: List[Path],
     id_key: str,
     target_key: str,
+    struct_key: str,
     max_size: Optional[int],
 ) -> pd.DataFrame:
     dfs = [pd.read_csv(p) for p in csv_files]
     df_all = pd.concat(dfs, ignore_index=True)
 
     records: List[Dict] = []
-    for row in tqdm(df_all.itertuples(index=False), total=len(df_all), desc="Parsing CSVs"):
+    for row in tqdm(df_all.itertuples(
+        index=False), total=len(df_all), desc="Parsing CSVs"):
         if max_size is not None and len(records) >= max_size:
             break
 
@@ -115,7 +83,7 @@ def collect_records_from_csv(
             continue
 
         try:
-            pmg_struct = Structure.from_dict(ast.literal_eval(getattr(row, "structure")))
+            pmg_struct = Structure.from_dict(ast.literal_eval(getattr(row, struct_key)))
         except Exception:
             continue
 
@@ -147,130 +115,105 @@ def collect_records_from_csv(
         )
 
     if not records:
-        raise RuntimeError("No valid entries collected – check target column name or max‑size filter.")
+        raise RuntimeError(
+            "No valid entries collected – check column names or the max-size filter."
+        )
 
     return pd.DataFrame(records)
 
-################################################################################
-# Abstract‑factory base class
-################################################################################
+###############################################################################
+# Tc Histogram
+###############################################################################
+def create_tc_histogram(
+    df: pd.DataFrame, target_key: str, output_dir: Path
+) -> None:
+    temps = df[target_key]
 
-class BaseFactory(ABC):
-    def __init__(self, out_dir: Path, target_key: str):
-        self.out_dir = out_dir
-        self.target_key = target_key
-        self.out_dir.mkdir(parents=True, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.hist(
+        temps,
+        bins=5,
+        density=False,
+        cumulative=False,
+        alpha=0.6,
+        label="Distribution of Tc in Alexandria Dataset",
+    )
 
-    # common helper: write POSCARs, return list of relative paths in given order
-    def _write_poscars(self, df: pd.DataFrame, indices: List[int]) -> List[str]:
-        rel_paths: List[str] = []
+    ax.set_xlabel("Tc")
+    ax.set_ylabel("Number of Structures")
+    ax.legend()
 
-        # ① change CWD just for this block
-        with _pushd(self.out_dir):
-            for idx in indices:
-                row   = df.iloc[idx]
-                fname = f"{row['material_id']}.vasp"
+    (output_dir / "alex_tc_histogram.pdf").with_suffix(".pdf").parent.mkdir(
+        parents=True, exist_ok=True
+    )
+    plt.savefig(
+        output_dir / "alex_tc_histogram.pdf",
+        format="pdf",
+        bbox_inches="tight",
+    )
+    plt.close(fig)
 
-                # ② let Jarvis write; both copies now end up *here*
-                Poscar(row["atoms"]).write_file(fname)
+###############################################################################
+# Composition Pie Chart
+###############################################################################
+def create_composition_pie_chart(df: pd.DataFrame, output_dir: Path) -> None:
+    element_counts = df["elements"].explode().value_counts()
 
-                rel_paths.append(fname)
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.pie(
+        element_counts.to_numpy(),
+        labels=element_counts.index.to_list(),
+        autopct="%1.1f%%",
+        shadow=True,
+        startangle=90,
+        wedgeprops={"edgecolor": "w", "linewidth": 1},
+        textprops={"fontsize": 12},
+    )
+    ax.axis("equal")
+    plt.title("Number of Elements in the Alexandria Tc Dataset")
 
-        return rel_paths
-    @abstractmethod
-    def dump(self, df: pd.DataFrame, id_train: List[int], id_val: List[int], id_test: List[int]):
-        ...
+    (output_dir / "alex_composition_pie_chart.pdf").parent.mkdir(
+        parents=True, exist_ok=True
+    )
+    plt.savefig(
+        output_dir / "alex_composition_pie_chart.pdf",
+        format="pdf",
+        bbox_inches="tight",
+    )
+    plt.close(fig)
 
-################################################################################
-# Concrete factories
-################################################################################
-
-class AtomGPTFactory(BaseFactory):
-    def dump(self, df, id_train, id_val, id_test):
-        all_idx = id_test + id_train + id_val  # test first as before
-        rel_paths = self._write_poscars(df, all_idx)
-
-        id_prop = pd.DataFrame({
-            "structure_path": rel_paths,
-            self.target_key: [df.iloc[i][self.target_key] for i in all_idx],
-        })
-        id_prop.to_csv(self.out_dir / "id_prop.csv", index=False, header=False)
-        print(f"✓ AtomGPT → id_prop.csv ({len(id_prop)})  hash={hash10(rel_paths)}")
-
-
-class CDVAEFactory(BaseFactory):
-    def dump(self, df, id_train, id_val, id_test):
-        self._write_poscars(df, id_train + id_val + id_test)  # not strictly needed for CDVAE
-
-        def _mk(idx):
-            return pd.DataFrame({
-                "material_id": [df.iloc[i]["material_id"] for i in idx],
-                "cif": [df.iloc[i]["cif_raw"] for i in idx],
-                self.target_key: [df.iloc[i][self.target_key] for i in idx],
-            })
-
-        _mk(id_train).to_csv(self.out_dir / "train.csv", index=False)
-        _mk(id_val).to_csv(self.out_dir / "val.csv", index=False)
-        _mk(id_test).to_csv(self.out_dir / "test.csv", index=False)
-        print(f"✓ CDVAE → train/val/test CSVs (test hash={hash10([df.iloc[i]['material_id'] for i in id_test])})")
-
-
-class FlowMMFactory(BaseFactory):
-    def dump(self, df, id_train, id_val, id_test):
-        self._write_poscars(df, id_train + id_val + id_test)
-
-        def _mk(idx):
-            return pd.DataFrame({
-                "material_id": [df.iloc[i]["material_id"] for i in idx],
-                "pretty_formula": [df.iloc[i]["pretty_formula"] for i in idx],
-                "elements": [json.dumps(df.iloc[i]["elements"]) for i in idx],
-                "cif": [df.iloc[i]["cif_raw"] for i in idx],
-                "spacegroup.number": [df.iloc[i]["spg_raw"] for i in idx],
-                "spacegroup.number.conv": [df.iloc[i]["spg_conv"] for i in idx],
-                "cif.conv": [df.iloc[i]["cif_conv"] for i in idx],
-                self.target_key: [df.iloc[i][self.target_key] for i in idx],
-            })
-
-        _mk(id_train).to_csv(self.out_dir / "train.csv", index=False)
-        _mk(id_val).to_csv(self.out_dir / "val.csv", index=False)
-        _mk(id_test).to_csv(self.out_dir / "test.csv", index=False)
-        print(f"✓ FlowMM → train/val/test CSVs (test hash={hash10([df.iloc[i]['material_id'] for i in id_test])})")
-
-################################################################################
+###############################################################################
 # CLI handling
-################################################################################
-
-FACTORIES = {
-    "atomgpt": AtomGPTFactory,
-    "cdvae": CDVAEFactory,
-    "flowmm": FlowMMFactory,
-}
-
-
+###############################################################################
 def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--csv-files", nargs="+", required=True)
-    common.add_argument("--id-key", default="mat_id")
-    common.add_argument("--target", dest="target_key", default="Tc")
-    common.add_argument("--output", required=True)
+    common.add_argument("--csv-files", nargs="+", required=True, help="Input CSV paths")
+    common.add_argument("--id-key", default="mat_id", help="Column with unique IDs")
+    common.add_argument("--target", dest="target_key", 
+                        default="Tc", help="Target column")
+    common.add_argument("--structure-key", dest="struct_key", default="structure",
+                        help="Column that stores the pymatgen Structure dict")
+    common.add_argument("--output", required=True, help="Output directory")
     common.add_argument("--max-size", type=int, default=None)
     common.add_argument("--seed", type=int, default=123)
     common.add_argument("--val-ratio", type=float, default=0.1)
     common.add_argument("--test-ratio", type=float, default=0.1)
 
-    p = argparse.ArgumentParser(
+    return argparse.ArgumentParser(
         prog="alexandria_preprocess",
+        parents=[common],
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=textwrap.dedent(
-            """Pre‑process Alexandria CSVs into model‑specific formats while sharing a single deterministic train/val/test split.""",
+            """\
+            Pre-process Alexandria CSVs into model-specific formats while
+            sharing a single deterministic train/val/test split.
+            """
         ),
     )
-    sub = p.add_subparsers(dest="model", required=True)
-    for m in FACTORIES:
-        sub.add_parser(m, parents=[common], help=f"prepare data for {m}")
-    return p
 
-
+###############################################################################
+# Main
+###############################################################################
 def main(argv: Optional[List[str]] = None):
     args = build_parser().parse_args(argv)
 
@@ -282,18 +225,19 @@ def main(argv: Optional[List[str]] = None):
         csv_files,
         id_key=args.id_key,
         target_key=args.target_key,
+        struct_key=args.struct_key,
         max_size=args.max_size,
     )
     n = len(df)
+    out_dir = Path(args.output).expanduser().resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
     print(f"✓ Collected {n} usable rows")
 
-    # 2) Split
-    id_train, id_val, id_test = deterministic_split(n, args.val_ratio, args.test_ratio, args.seed)
-    print(f"Split sizes  train:{len(id_train)}  val:{len(id_val)}  test:{len(id_test)}")
+    # 2) Create Tc histogram
+    create_tc_histogram(df, args.target_key, out_dir)
 
-    # 3) Dispatch
-    out_dir = Path(args.output).expanduser().resolve()
-    FACTORIES[args.model](out_dir, args.target_key).dump(df, id_train, id_val, id_test)
+    # 3) Create composition pie chart
+    create_composition_pie_chart(df, out_dir)
 
 
 if __name__ == "__main__":
