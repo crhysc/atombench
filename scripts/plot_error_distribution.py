@@ -241,7 +241,7 @@ for i in d:
         # print('predicted',a2,a2.density,a2.spacegroup())
     except:
         pass
-print(f'metrics_{Path(os.getcwd()).parts[-1]}.txt'}
+print(f'metrics_{Path(os.getcwd()).parts[-1]}')
 print("comp", len(comp), len(samps_comp), "spg", len(spg), len(samps_spg))
 print("KLD a", kl_divergence(x_a, y_a))
 print("KLD b", kl_divergence(x_b, y_b))
