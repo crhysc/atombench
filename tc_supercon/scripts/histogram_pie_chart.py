@@ -165,8 +165,9 @@ def create_composition_pie_chart(df: pd.DataFrame, output_dir: Path) -> None:
         counts,
         labels=labels,           # ← length now matches counts
         labeldistance=1.3,
-	radius=0.8,
-	shadow=False,
+	    autopct='%1.1f%%',
+        radius=0.8,
+	    shadow=False,
         startangle=90,
         wedgeprops={"edgecolor": "w", "linewidth": 1},
         textprops={"fontsize": 12},
