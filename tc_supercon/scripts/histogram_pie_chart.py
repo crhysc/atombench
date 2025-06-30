@@ -164,10 +164,10 @@ def create_composition_pie_chart(df: pd.DataFrame, output_dir: Path) -> None:
     ax.pie(
         counts,
         labels=labels,
-        labeldistance=1.2,
+        labeldistance=1.3,
 	    autopct='%1.1f%%',
-        pctdistance=1.1,
-        radius=0.8,
+        pctdistance=1.2,
+        radius=0.9,
 	    shadow=False,
         startangle=90,
         wedgeprops={"edgecolor": "w", "linewidth": 1},
