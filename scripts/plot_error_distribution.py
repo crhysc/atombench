@@ -423,7 +423,7 @@ fig.tight_layout()
 plt.close()
 
 metrics = {
-    "benchmark_name:" : f"{Path(os.getcwd()).parts[-1]}",
+    #benchmark_name:" : f"{Path(os.getcwd()).parts[-1]}",
     "n_same_composition"   : len(comp),
     "n_total_composition"  : len(samps_comp),
     "n_same_spacegroup"    : len(spg),
