@@ -1,6 +1,6 @@
 #!/bin/bash
 for dir in */
-	fo cd "$dir"
+	do cd "$dir"
 		rm -rf distribution.pdf metrics.txt
 		python ../../scripts/plot_error_distribution.py | tail -n 30 > metrics.txt
 		cd ..
