@@ -1,5 +1,6 @@
 # conda activate /lab/mml/kipp/677/jarvis/Software/microgpt310
 import os
+import json
 from pathlib import Path
 from jarvis.db.jsonutils import loadjson
 from jarvis.core.atoms import Atoms
@@ -422,6 +423,7 @@ fig.tight_layout()
 plt.close()
 
 metrics = {
+    "benchmark_name:" : f"{Path(os.getcwd()).parts[-1]}",
     "n_same_composition"   : len(comp),
     "n_total_composition"  : len(samps_comp),
     "n_same_spacegroup"    : len(spg),
