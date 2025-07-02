@@ -4,8 +4,10 @@ from pathlib import Path
 import sys
 
 # Force a non‐interactive backend in case you’re headless
-import matplotlib
-matplotlib.use('Agg')
+import matplotlib as mpl
+mpl.use('Agg')
+mpl.rcParams['font.family']    = 'serif'
+
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -41,6 +43,24 @@ df = pd.DataFrame(rows)
 print("DEBUG: DataFrame shape:", df.shape, file=sys.stderr)
 print("DEBUG: DataFrame columns:", df.columns.tolist(), file=sys.stderr)
 
+bnchmk_name_dict = {
+    "agpt_benchmark_alex": "AtomGPT Alexandria",
+    "agpt_benchmark_jarvis": "AtomGPT JARVIS",
+    "cdvae_benchmark_alex": "CDVAE Alexandria",
+    "cdvae_benchmark_jarvis": "CDVAE JARVIS",
+    "flowmm_benchmark_alex": "FlowMM Alexandria",
+    "flowmm_benchmark_jarvis": "FlowMM JARVIS"
+}
+
+col_map = {
+    'KLD.a': r'$a$',
+    'KLD.b': r'$b$',
+    'KLD.c': r'$c$',
+    'KLD.alpha': r'$\alpha$',
+    'KLD.beta': r'$\beta$',
+    'KLD.gamma': r'$\gamma$'
+}
+
 if "benchmark_name" in df.columns:
     cols = ["benchmark_name"] + [c for c in df.columns if c != "benchmark_name"]
     df = df[cols]
@@ -54,22 +74,27 @@ if missing:
     print("ERROR: Missing metric columns:", missing, file=sys.stderr)
     sys.exit(1)
 
-plot_df = df.set_index('benchmark_name')[params]
+plot_df = df.set_index('benchmark_name')[params].rename(index=bnchmk_name_dict).rename(columns=col_map)
 print("DEBUG: plot_df shape:", plot_df.shape, file=sys.stderr)
 print("DEBUG: plot_df head:\n", plot_df.head(), file=sys.stderr)
 
 ax = plot_df.plot(
     kind='bar',
-    figsize=(10, 6),
+    figsize=(10, 8),
     edgecolor='k'
 )
 
-ax.set_xlabel('Benchmark')
-ax.set_ylabel('Metric Value')
-ax.set_title('Comparison of Six Metrics Across Benchmarks')
-ax.legend(title='Parameter')
+ax.set_xlabel('', fontsize=16)
+ax.set_ylabel('KL Divergence (Nats)', fontsize=16)
+ax.set_title('KL Divergence of Predicted vs. \n Target Lattice Parameter Distributions',
+             fontsize=22)
+ax.legend(title='Lattice Parameter',
+          title_fontsize=15,
+          fontsize=15
+)
 
-plt.xticks(rotation=30, ha='right')
+plt.xticks(rotation=30, ha='right', fontsize=13)
+plt.yticks(fontsize=15)
 plt.tight_layout()
 
 out_path = ROOT / 'comparison_bar_chart.png'
