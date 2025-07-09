@@ -6,7 +6,7 @@
 This repository is still undergoing development. Currently, absolute paths are mostly used for sbatch scripts and other files. Soon, these will be
 updated to evironment-variable-based paths to allow for easy reproducability.
 
- Near-term goals:
+## Near-term goals:
 - Use environment-variable-paths instead of absolute paths
 - Wrap each benchmark as a Snakmake workflow
 
