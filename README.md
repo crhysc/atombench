@@ -18,19 +18,19 @@ updated to evironment-variable-based paths to allow for easy reproducability.
 6) cd job_runs/
 7) Update 'wandb_api_key.sh' to contain a valid wandb_api_key
 8) for dir in *jarvis/; sbatch "$dir"/conda_env.job; done
-9) When the sbatch jobs from 6) are finished, execute the following command:
+9) When the sbatch jobs from 8) are finished, execute the following command:
    for dir in */; do sbatch "$dir"/yamls*; done
-10) When the sbatch jobs from 6) are finished, execute the following command:
+10) When the sbatch jobs from 9) are finished, execute the following command:
    for dir in */; do sbatch "$dir"/train*; done
-11) When the sbatch jobs from 7) are finished, update absolute paths and execute the following command:
+11) When the sbatch jobs from 10) are finished, update absolute paths and execute the following command:
    for dir in */; do sbatch "$dir"/train*; done
-12) When the sbatch jobs from 8) are finished, update absolute paths and execute the following command:
+12) When the sbatch jobs from 11) are finished, update absolute paths and execute the following command:
    for dir in */; do sbatch "$dir"/inference*; done
-13) When the sbatch jobs from 9) are finished, update absolute paths and execute the following command:
+13) When the sbatch jobs from 12) are finished, update absolute paths and execute the following command:
    for dir in */; do sbatch "$dir"/benchmark.job*; bash write_benchmark.sh*; done
-14) When the sbatch jobs from 10) are finished, update absolute paths and execute the following command:
+14) When the sbatch jobs from 13) are finished, update absolute paths and execute the following command:
    bash loop.sh
-15) When the sbatch jobs from 11) are finished, update absolute paths and execute the following command:
+15) When the sbatch jobs from 14) are finished, update absolute paths and execute the following command:
     python ../scripts/bar_chart.py
 
 ## Installation & Usage Tutorials
