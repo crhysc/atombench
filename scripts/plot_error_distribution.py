@@ -1,4 +1,3 @@
-# conda activate /lab/mml/kipp/677/jarvis/Software/microgpt310
 import os
 import json
 from pathlib import Path
@@ -20,7 +19,7 @@ mpl.rcParams['font.family']    = 'serif'
 from matplotlib.gridspec import GridSpec
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
-from jarvis.core.lattice import get_2d_lattice
+from jarvis.analysis.structure.spacegroup import Spacegroup3D
 import pandas as pd
 from jarvis.io.vasp.inputs import Poscar
 the_grid = GridSpec(2, 3)
@@ -216,8 +215,9 @@ for i in d:
     comp2 = a2.composition.reduced_formula
     x_Z.append(a1.composition.weight)
     y_Z.append(a2.composition.weight)
-    lat_1 = get_2d_lattice(atoms=i["target"])[1]
-    lat_2 = get_2d_lattice(atoms=i["predicted"])[1]
+    lat_1 = Spacegroup3D(a1).crystal_system
+    print(lat_1)
+    lat_2 = Spacegroup3D(a2).crystal_system
 
     x_lat.append(lat_1)
     y_lat.append(lat_2)
@@ -259,6 +259,15 @@ average_lattice_params_kld = statistics.mean([
     kl_divergence(x_alpha, y_alpha),
     kl_divergence(x_beta, y_beta),
     kl_divergence(x_gamma, y_gamma),
+])
+
+average_mae = statistics.mean([
+    mean_absolute_error(x_a, y_a),
+    mean_absolute_error(x_b, y_b),
+    mean_absolute_error(x_c, y_c),
+    mean_absolute_error(x_alpha, y_alpha),
+    mean_absolute_error(x_beta, y_beta),
+    mean_absolute_error(x_gamma, y_gamma)
 ])
 
 #print(f'benchmark: metrics_{Path(os.getcwd()).parts[-1]}')
@@ -480,6 +489,7 @@ metrics = {
     },
 
     "MAE": {
+        "average_mae" : average_mae,
         "a"     : mean_absolute_error(x_a, y_a),
         "b"     : mean_absolute_error(x_b, y_b),
         "c"     : mean_absolute_error(x_c, y_c),
