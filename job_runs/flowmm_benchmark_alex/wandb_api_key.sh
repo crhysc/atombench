@@ -1,2 +1,0 @@
-#/bin/bash
-export WANDB_API_KEY=846897ef85c90d147a5e837e1a54a0ee78344c77
