@@ -6,10 +6,11 @@
 
 ## Compute benchmarks
 1) Run 'git submodule update --init --recursive'
-2) Run 'conda install -n base -c conda-forge mamba'
-3) Run 'pip install uv dvc snakemake'
-4) Populate 'scripts/wandb_api_key.sh' with a valid wandb_api_key
-5) Run 'snakemake'
+2) Run 'export CONDA_EXECUTABLE={path}' where '{path}' is the path to the 'conda.sh' executable on your machine
+3) Run 'conda install -n base -c conda-forge mamba'
+4) Run 'pip install uv dvc snakemake'
+5) Populate 'scripts/wandb_api_key.sh' with a valid wandb_api_key
+6) Run 'snakemake'
 
 ## Installation & Usage Tutorials
 ### AtomGPT
