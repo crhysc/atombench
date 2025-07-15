@@ -1,9 +1,9 @@
 #!/bin/bash
 
-cd /lab/mml/kipp/677/jarvis/rhys/benchmarks/models/cdvae
+cd ../../models/cdvae
 
 mamba env create -f env.yml -y
-source /home/crc8/miniconda3/etc/profile.d/conda.sh
+source "$CONDA_EXECUTABLE"
 conda activate cdvae
 mamba install -c conda-forge "torchmetrics<0.8" --yes
 mamba install mkl=2024.0 --yes

@@ -1,7 +1,6 @@
 #!/bin/bash
 
 #SBATCH --job-name=cdvae_tc            
-#SBATCH --output=/lab/mml/kipp/677/jarvis/rhys/benchmarks/job_runs/cdvae_benchmark_jarvis/fl_studio.out
 #SBATCH --partition=batch
 #SBATCH --nodes=1                         
 #SBATCH --gres=gpu:1
@@ -11,22 +10,22 @@
 #SBATCH --mem=64G                           # Total RAM for the job (8 GB)
 
 module load cuda/11.8
-source /home/crc8/miniconda3/etc/profile.d/conda.sh
+source "$CONDA_EXECUTABLE"
 conda activate cdvae
 nvidia-smi
 
 
 
-export PROJECT_ROOT="/lab/mml/kipp/677/jarvis/rhys/benchmarks/models/cdvae"
-export HYDRA_JOBS="/lab/mml/kipp/677/jarvis/rhys/benchmarks/job_runs/cdvae_benchmark_jarvis/hydra_outputs"
+export PROJECT_ROOT="../../models/cdvae"
+export HYDRA_JOBS="./hydra_outputs"
 export HYDRA_FULL_ERROR="1"
-export WABDB_DIR="/lab/mml/kipp/677/jarvis/rhys/benchmarks/job_runs/cdvae_benchmark_jarvis/wandb_outputs"
+export WABDB_DIR="./wandb_outputs"
 #export WANDB_MODE="offline"
-source ../wandb_api_key.sh
+source ../../scripts/wandb_api_key.sh
 
 echo "running inference"
 python ../../models/cdvae/scripts/evaluate.py \
-    --model_path /lab/mml/kipp/677/jarvis/rhys/benchmarks/job_runs/cdvae_benchmark_jarvis/hydra_outputs/singlerun/2025-06-18/supercon \
+    --model_path ../hydra_outputs/singlerun/????-??-??/supercon \
     --tasks recon \
     --num_evals 1 #\
     #--force_atom_types

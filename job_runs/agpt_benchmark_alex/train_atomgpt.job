@@ -1,7 +1,6 @@
 #!/bin/bash
 
 #SBATCH --job-name=agpt_alex
-#SBATCH --output=/lab/mml/kipp/677/jarvis/rhys/benchmarks/job_runs/agpt_benchmark_alex/fl_studio.out
 #SBATCH --partition=batch
 #SBATCH --nodes=1                         
 #SBATCH --gres=gpu:1
@@ -11,9 +10,9 @@
 #SBATCH --mem=8G                           # Total RAM for the job (8 GB)
 
 module load cuda/11.8
-source /home/crc8/miniconda3/etc/profile.d/conda.sh
+source "$CONDA_EXECUTABLE"
 conda activate my_atomgpt
 nvidia-smi
 
-python /lab/mml/kipp/677/jarvis/rhys/benchmarks/models/atomgpt/atomgpt/inverse_models/inverse_models.py \
-    --config_name /lab/mml/kipp/677/jarvis/rhys/benchmarks/job_runs/agpt_benchmark_alex/config.json
+python ../../models/atomgpt/atomgpt/inverse_models/inverse_models.py \
+    --config_name ./config.json
