@@ -1,0 +1,42 @@
+rule all:
+    input:
+        "flowmm_benchmark_jarvis.final"
+
+rule train_flowmm_jarvis:
+    output:
+        touch("flowmm_benchmark_jarvis.trained")
+    input:
+        "flowmm_env.created",
+        "../../tc_supercon/jarvis_data.created",
+        "flowmm_yamls.created"
+    shell:
+        """
+        sbatch train_flowmm.job
+        """
+
+rule infer_flowmm_jarvis:
+    output:
+        touch("flowmm_benchmark_jarvis.inferred")
+    input:
+        "flowmm_env.created",
+        "../../tc_supercon/jarvis_data.created",
+        "flowmm_benchmark_jarvis.trained",
+        "flowmm_yamls.created"
+    shell:
+        """
+        sbatch inference_flowmm.job
+        """
+
+rule benchmark_flowmm_jarvis:
+    output:
+        touch("flowmm_benchmark_jarvis.final")
+    input:
+        "flowmm_env.created",
+        "../../tc_supercon/jarvis_data.created",
+        "flowmm_benchmark_jarvis.trained",
+        "flowmm_benchmark_jarvis.inferred",
+        "flowmm_yamls.created"
+    shell:
+        """
+        bash write_benchmark.sh
+        """

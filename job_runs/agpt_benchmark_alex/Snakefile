@@ -1,0 +1,14 @@
+rule all:
+    input:
+        "agpt_benchmark_alex.final"
+
+rule train_atomgpt_alex:
+    output:
+        touch("agpt_benchmark_alex.final")
+    input:
+        "atomgpt_env.created",
+        "../../alexandria/alex_data.created"
+    shell:
+        """
+        sbatch train_atomgpt.job
+        """
