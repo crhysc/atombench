@@ -6,7 +6,7 @@ rule train_cdvae_jarvis:
         "../../tc_supercon/jarvis_data.created"
     shell:
         """
-        sbatch train_cdvae.job
+        sbatch --wait train_cdvae.job
         """
 
 rule infer_cdvae_jarvis:
@@ -18,7 +18,7 @@ rule infer_cdvae_jarvis:
         "cdvae_benchmark_jarvis.trained"
     shell:
         """
-        sbatch inference_cdvae.job
+        sbatch --wait inference_cdvae.job
         """
 
 rule benchmark_cdvae_jarvis:
@@ -32,5 +32,5 @@ rule benchmark_cdvae_jarvis:
 
     shell:
         """
-        sbatch benchmark_cdvae.job
+        sbatch --wait benchmark_cdvae.job
         """

@@ -22,7 +22,7 @@ rule make_atomgpt_env:
         touch("atomgpt_env.created")
     shell:
         """
-        JOBID=$(sbatch --parsable job_runs/agpt_benchmark_alex/conda_env.job)
+        JOBID=$(sbatch --wait --parsable job_runs/agpt_benchmark_alex/conda_env.job)
         while squeue -j $JOBID &> /dev/null; do sleep 5; done
         """
 
@@ -31,7 +31,7 @@ rule make_cdvae_env:
         touch("cdvae_env.created")
     shell:
         """
-        JOBID=$(sbatch --parsable job_runs/cdvae_benchmark_alex/conda_env.job)
+        JOBID=$(sbatch --wait --parsable job_runs/cdvae_benchmark_alex/conda_env.job)
         while squeue -j $JOBID &> /dev/null; do sleep 5; done
         """
 
@@ -40,7 +40,7 @@ rule make_flowmm_env:
         touch("flowmm_env.created")
     shell:
         """
-        JOBID=$(sbatch --parsable job_runs/flowmm_benchmark_alex/conda_env.job)
+        JOBID=$(sbatch --wait --parsable job_runs/flowmm_benchmark_alex/conda_env.job)
         while squeue -j $JOBID &> /dev/null; do sleep 5; done
         """
 

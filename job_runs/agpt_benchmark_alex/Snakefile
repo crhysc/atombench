@@ -6,5 +6,5 @@ rule train_atomgpt_alex:
         "alex_data.created"
     shell:
         """
-        sbatch train_atomgpt.job
+        sbatch --wait train_atomgpt.job
         """

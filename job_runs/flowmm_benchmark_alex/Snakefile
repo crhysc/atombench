@@ -7,7 +7,7 @@ rule train_flowmm_alex:
         "flowmm_yamls.created"
     shell:
         """
-        sbatch train_flowmm.job
+        sbatch --wait train_flowmm.job
         """
 
 rule infer_flowmm_alex:
@@ -20,7 +20,7 @@ rule infer_flowmm_alex:
         "flowmm_yamls.created"
     shell:
         """
-        sbatch inference_flowmm.job
+        sbatch --wait inference_flowmm.job
         """
 
 rule benchmark_flowmm_alex:
