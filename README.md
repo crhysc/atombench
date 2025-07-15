@@ -8,7 +8,7 @@
 1) Run 'git submodule update --init --recursive'
 2) Run 'conda install -n base -c conda-forge mamba'
 3) Run 'pip install uv dvc snakemake'
-4) Populate 'wandb_api_key.sh' with a valid wandb_api_key
+4) Populate 'scripts/wandb_api_key.sh' with a valid wandb_api_key
 5) Run 'snakemake'
 
 ## Installation & Usage Tutorials
