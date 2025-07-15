@@ -1,21 +1,20 @@
-rule all:
-    input:
-        [globals()[exp](f"{exp}/{exp}.final") for exp in EXPS],
-        "charts.made"
-
 EXPS = [
-    "agpt_benchmark_alex/",
-    "agpt_benchmark_jarvis/",
-    "cdvae_benchmark_alex/",
-    "cdvae_benchmark_jarvis/",
-    "flowmm_benchmark_alex/",
-    "flowmm_benchmark_jarvis/"
+    "agpt_benchmark_alex",
+    "agpt_benchmark_jarvis",
+    "cdvae_benchmark_alex",
+    "cdvae_benchmark_jarvis",
+    "flowmm_benchmark_alex",
+    "flowmm_benchmark_jarvis"
 ]
-
 for exp in EXPS:
     subworkflow exp:
         workdir: f"job_runs/{exp}"
         snakefile: f"job_runs/{exp}/Snakefile"
+
+rule all:
+    input:
+        [globals()[exp](f"{exp}.final") for exp in EXPS],
+        "charts.made"
 
 rule make_atomgpt_env:
     output:
@@ -23,7 +22,7 @@ rule make_atomgpt_env:
         touch("job_runs/agpt_benchmark_jarvis/atomgpt_env.created")
     shell:
         """
-        JOBID=$(sbatch --parsable agpt_benchmark_alex/conda_env.job)
+        JOBID=$(sbatch --parsable job_runs/agpt_benchmark_alex/conda_env.job)
         while squeue -j $JOBID &> /dev/null; do sleep 5; done
         """
 
@@ -33,7 +32,7 @@ rule make_cdvae_env:
         touch("job_runs/cdvae_benchmark_jarvis/cdvae_env.created")
     shell:
         """
-        JOBID=$(sbatch --parsable cdvae_benchmark_alex/conda_env.job)
+        JOBID=$(sbatch --parsable job_runs/cdvae_benchmark_alex/conda_env.job)
         while squeue -j $JOBID &> /dev/null; do sleep 5; done
         """
 
@@ -43,7 +42,7 @@ rule make_flowmm_env:
         touch("job_runs/flowmm_benchmark_jarvis/flowmm_env.created")
     shell:
         """
-        JOBID=$(sbatch --parsable flowmm_benchmark_alex/conda_env.job)
+        JOBID=$(sbatch --parsable job_runs/flowmm_benchmark_alex/conda_env.job)
         while squeue -j $JOBID &> /dev/null; do sleep 5; done
         """
 
@@ -59,7 +58,7 @@ rule envs_ready:
         touch("job_runs/all_envs_ready.txt")
     shell:
         """
-        echo all conda envs ready > {output}
+        echo 'all conda envs ready' > {output}
         """
 
 rule make_jarvis_data:
@@ -85,7 +84,9 @@ rule make_alex_data:
 rule make_stats_yamls:
     input:
         "job_runs/flowmm_benchmark_alex/flowmm_env.created",
-        "job_runs/flowmm_benchmark_jarvis/flowmm_env.created"
+        "job_runs/flowmm_benchmark_jarvis/flowmm_env.created",
+        "tc_supercon/jarvis_data.created",
+        "alexandria/alex_data.created"
     output:
         touch("job_runs/flowmm_benchmark_alex/flowmm_yamls.created"),
         touch("job_runs/flowmm_benchmark_jarvis/flowmm_yamls.created")
@@ -93,3 +94,21 @@ rule make_stats_yamls:
         """
         bash job_runs/flowmm_benchmark_alex/yamls.sh
         """
+
+rule compile_results:
+    input:
+        [globals()[exp](f"{exp}/{exp}.final") for exp in EXPS]
+    output:
+        touch("metrics.computed")
+    shell:
+        """
+        cd job_runs/ && bash ../scripts/loop.sh
+        """
+
+rule make_bar_charts:
+    input:
+        "metrics.computed"
+    output:
+        touch("charts.made")
+    shell:
+        "cd job_runs/ && python ../scripts/bar_chart.py"
