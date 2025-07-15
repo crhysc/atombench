@@ -14,7 +14,7 @@ for exp in EXPS:
 
 rule all:
     input:
-        expand("job_runs/{exp}/{exp}.final", exp=EXPS),
+        expand("{exp}.final", exp=EXPS),
         "charts.made"
 
 rule make_atomgpt_env:
@@ -22,8 +22,7 @@ rule make_atomgpt_env:
         touch("atomgpt_env.created")
     shell:
         """
-        JOBID=$(sbatch --wait --parsable job_runs/agpt_benchmark_alex/conda_env.job)
-        while squeue -j $JOBID &> /dev/null; do sleep 5; done
+        sbatch --wait --parsable job_runs/agpt_benchmark_alex/conda_env.job
         """
 
 rule make_cdvae_env:
@@ -31,8 +30,7 @@ rule make_cdvae_env:
         touch("cdvae_env.created")
     shell:
         """
-        JOBID=$(sbatch --wait --parsable job_runs/cdvae_benchmark_alex/conda_env.job)
-        while squeue -j $JOBID &> /dev/null; do sleep 5; done
+        sbatch --wait --parsable job_runs/cdvae_benchmark_alex/conda_env.job
         """
 
 rule make_flowmm_env:
@@ -40,8 +38,7 @@ rule make_flowmm_env:
         touch("flowmm_env.created")
     shell:
         """
-        JOBID=$(sbatch --wait --parsable job_runs/flowmm_benchmark_alex/conda_env.job)
-        while squeue -j $JOBID &> /dev/null; do sleep 5; done
+        sbatch --wait --parsable job_runs/flowmm_benchmark_alex/conda_env.job
         """
 
 rule envs_ready:
@@ -90,7 +87,7 @@ rule make_stats_yamls:
 
 rule compile_results:
     input:
-        expand("job_runs/{exp}/{exp}.final", exp=EXPS),
+        expand("{exp}.final", exp=EXPS),
     output:
         touch("metrics.computed")
     shell:
