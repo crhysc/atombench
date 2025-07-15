@@ -2,6 +2,8 @@
 
 #### Coming soon: CrystalGen software in github.com/atomgptlab that automates benchmark experiments and machine learning crystal structure generation!
 
+[Poster](benchmarks_poster.pdf)
+
 ## Compute benchmarks
 1) Run 'git submodule update --init --recursive'
 2) Run 'conda install -n base -c conda-forge mamba'
