@@ -11,6 +11,7 @@ for exp in EXPS:
         name: exp
         snakefile: f"job_runs/{exp}/Snakefile"
         prefix:   f"job_runs/{exp}"
+    use rule * from exp
 
 rule all:
     input:
