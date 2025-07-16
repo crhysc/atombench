@@ -1,9 +1,9 @@
 rule train_atomgpt_alex:
     output:
-        touch("sentinels/agpt_benchmark_alex.final")
+        touch("agpt_benchmark_alex.final")
     input:
-        "sentinels/atomgpt_env.created",
-        "sentinels/alex_data.created"
+        "atomgpt_env.created",
+        "alex_data.created"
     shell:
         """
         sbatch --wait job_runs/agpt_benchmark_alex/train_atomgpt.job
