@@ -30,7 +30,7 @@ rule make_cdvae_env:
         touch("cdvae_env.created")
     shell:
         """
-        bash --wait --parsable job_runs/cdvae_benchmark_alex/conda_env.job
+        bash job_runs/cdvae_benchmark_alex/conda_env.job
         """
 
 rule make_flowmm_env:
@@ -38,7 +38,7 @@ rule make_flowmm_env:
         touch("flowmm_env.created")
     shell:
         """
-        bash --wait --parsable job_runs/flowmm_benchmark_alex/conda_env.job
+        bash job_runs/flowmm_benchmark_alex/conda_env.job
         """
 
 rule envs_ready:
