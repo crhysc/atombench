@@ -60,7 +60,7 @@ rule make_jarvis_data:
         touch("jarvis_data.created")
     shell:
         """
-        dvc -C tc_supercon repro
+        dvc --cd tc_supercon repro
         """
 
 rule make_alex_data:
@@ -70,7 +70,7 @@ rule make_alex_data:
         touch("alex_data.created")
     shell:
         """
-        dvc -C alexandria repro
+        dvc --cd alexandria repro
         """
 
 rule make_stats_yamls:
