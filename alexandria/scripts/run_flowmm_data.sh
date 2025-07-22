@@ -5,10 +5,10 @@ python scripts/alexandria_preprocess.py flowmm \
        --output . --seed 123
 
 # move everything to the right spot
-mkdir -p /lab/mml/kipp/677/jarvis/rhys/benchmarks/models/flowmm/data/alexandria
+mkdir -p ../models/flowmm/data/alexandria
 python - <<'PYCODE'
 import os
-path = "/lab/mml/kipp/677/jarvis/rhys/benchmarks/models/flowmm/data/alexandria"
+path = "../models/flowmm/data/alexandria"
 files = ["train.csv", "test.csv", "val.csv"]
 for file in files:
 	file_path = os.path.join(path,file)
