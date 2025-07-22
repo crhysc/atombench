@@ -45,6 +45,6 @@ jobs:
 
       - name: Run Bash unit tests
         env:
-          BATS_LIB_PATH: /usr/lib 
+          BATS_LIB_PATH: /usr/lib/bats:/usr/lib
         run: |
           bats tests/unit/test_install_submodules.bats
