@@ -25,5 +25,12 @@ jobs:
             exit 1
           fi
           for d in models/atomgpt models/cdvae models/flowmm; do
-            [ -d "$d" ] || { echo "Missing $d"; exit 1; }
+            if [ ! -d "$d" ]; then
+              echo "Directory $d is missing"
+              exit 1
+            fi
+            if [ -z "$(ls -A "$d")" ]; then
+              echo "Directory $d is empty; submodule may not have been cloned correctly"
+              exit 1
+            fi
           done
