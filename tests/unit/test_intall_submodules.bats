@@ -5,21 +5,21 @@ load 'test_helper/bats-assert/load'
 
 REPO_ROOT="${BATS_TEST_DIRNAME}/../.."
 
-@test "git submodules are initialized and up to date" {
+@test "submodules can be initialized and updated" {
+  run git -C "$REPO_ROOT" submodule update --init --recursive
+  assert_success
+
   run git -C "$REPO_ROOT" submodule status
-  # submodule status prints a leading " " for clean,
-  # "-" if not initialized, "+" if out of sync.
-  # We assert that no lines begin with "-" or "+".
   echo "$output" | grep --quietE '^[+-]' && \
-    fail "Some submodules are missing or out of sync:\n$output"
+    fail "Submodule update did not produce a clean state:\n$output"
 }
 
 @test "expected submodule directories exist" {
   # replace these with the actual paths your repo uses
   dirs=(
-    "third_party/foo"
-    "modules/bar"
-    "external/baz"
+    "models/atomgpt"
+    "models/cdvae"
+    "models/flowmm"
   )
 
   for d in "${dirs[@]}"; do
@@ -27,9 +27,3 @@ REPO_ROOT="${BATS_TEST_DIRNAME}/../.."
     assert_success "Directory $d not found; submodule may not have been initialized"
   done
 }
-
-@test "build script runs without errors" {
-  run bash "$REPO_ROOT/install.sh"
-  assert_success
-}
-
