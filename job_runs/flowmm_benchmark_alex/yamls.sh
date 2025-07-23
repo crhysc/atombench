@@ -1,6 +1,7 @@
 #!/bin/bash
 
 eval "$(conda shell.bash hook)"
+conda activate flowmm
 
 # remove yamls that might exist from past pipeline runs
 rm -f models/flowmm/src/flowmm/rfm/manifolds/stats_supercon*
