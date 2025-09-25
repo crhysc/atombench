@@ -1,7 +1,7 @@
 {
     "id_prop_path":"alexandria/atomgpt_data/id_prop.csv",
     "prefix": "atomgpt_run",
-    "model_name": "unsloth/mistral-7b-bnb-4bit",
+    "model_name": "../../LLMs/unsloth/mistral-7b-bnb-4bit",
     "batch_size": 2,
     "num_epochs": 2,
     "logging_steps": 1,
