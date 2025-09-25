@@ -56,13 +56,13 @@ stages:
       size: 13081
     - path: scripts/run_cdvae_data.sh
       hash: md5
-      md5: 3e485cde838e18a6fe6790e21936b4c7
-      size: 579
+      md5: 4d2dae4084cafb7a86cd842b674b3891
+      size: 593
     outs:
     - path: ../models/cdvae/data/supercon
       hash: md5
-      md5: ab4ac434e30b676793c4529dff289b5b.dir
-      size: 967500
+      md5: b9b5fff31da4ee69cbd9590d3be945d1.dir
+      size: 18887
       nfiles: 3
   flowmm:
     cmd: bash scripts/run_flowmm_data.sh
@@ -73,13 +73,13 @@ stages:
       size: 13081
     - path: scripts/run_flowmm_data.sh
       hash: md5
-      md5: 07b07288ff0a5807ba68e4b7525cc1b7
-      size: 522
+      md5: a90789a321d68148ad0ee02099cc0cf2
+      size: 536
     outs:
     - path: ../models/flowmm/data/supercon
       hash: md5
-      md5: a88ee652e24fc6594c907d4c4b57b2df.dir
-      size: 2128981
+      md5: 951fa5db3a020393b5794e2977381fac.dir
+      size: 40616
       nfiles: 3
   atomgpt:
     cmd: bash scripts/run_atomgpt_data.sh
@@ -90,14 +90,14 @@ stages:
       size: 13081
     - path: scripts/run_atomgpt_data.sh
       hash: md5
-      md5: 62f78e820020b0368d1471a43e9d2136
-      size: 272
+      md5: 26281f4b0aa093729e7936de5b091b51
+      size: 286
     outs:
     - path: atomgpt_data
       hash: md5
-      md5: b81c1a4f76b92a20ed962e2a697c2631.dir
-      size: 352526
-      nfiles: 1059
+      md5: f8c6710994ab6c768115b6242d60ceea.dir
+      size: 6330
+      nfiles: 21
   check:
     cmd: python scripts/checker.py --atomgpt-dir ./atomgpt_data --cdvae-dir ../models/cdvae/data/supercon
       --flowmm-dir ../models/flowmm/data/supercon --strict-order
