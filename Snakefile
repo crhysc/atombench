@@ -105,11 +105,11 @@ rule make_bar_charts:
 
 rule make_overlay_charts:
     input:
-	"alex_data.created",
-	"jarvis_data.created"
+ "alex_data.created",
+ "jarvis_data.created"
     output:
-	touch("overlay_charts.created")
+ touch("overlay_charts.created")
     shell:
-	"""
-	bash scripts/make_overlay_charts.sh
-	"""
+ """
+ bash scripts/make_overlay_charts.sh
+ """
