@@ -1,7 +1,7 @@
 #!/bin/bash
 # run data preprocessor
 python scripts/data_preprocess.py flowmm --dataset dft_3d --output .  \
-                                         --target Tc_supercon --max-size 1000 --seed 123
+                                         --target Tc_supercon --seed 123
 
 # move everything to the right spot
 mkdir -p ../models/flowmm/data/supercon
