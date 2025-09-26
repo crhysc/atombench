@@ -10,10 +10,9 @@
 
 module load cuda/11.8
 eval "$(conda shell.bash hook)"
-#conda activate cdvae
+conda activate cdvae
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
 nvidia-smi
-
-
 
 source scripts/absolute_path.sh
 export PROJECT_ROOT="${ABS_PATH%/}/models/cdvae"
@@ -24,7 +23,8 @@ export WABDB_DIR="${ABS_PATH%/}/job_runs/cdvae_benchmark_jarvis/wandb_outputs"
 source scripts/wandb_api_key.sh
 
 echo "running python script"
-conda run -n cdvae --no-capture-output python job_runs/cdvae_benchmark_jarvis/write_benchmark.py \
+#conda run -n cdvae --no-capture-output 
+python job_runs/cdvae_benchmark_jarvis/write_benchmark.py \
     --run_dir job_runs/cdvae_benchmark_jarvis/hydra_outputs/singlerun/????-??-??/supercon \
     --use_tensor recon \
     --data_dir models/cdvae/data/supercon \
