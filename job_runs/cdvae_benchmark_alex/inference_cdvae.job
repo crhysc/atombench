@@ -1,7 +1,6 @@
-(base) [crc00042@dsis001 job_runs]$ cat cdvae_benchmark_jarvis/inference_cdvae.job 
 #!/bin/bash
 
-#SBATCH --job-name=cdvae_tc            
+#SBATCH --job-name=cdvae_alex            
 #SBATCH --nodes=1                         
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks-per-node=4                # Run 4 tasks (processes) on the node
@@ -19,9 +18,9 @@ source scripts/absolute_path.sh
 ROOT="${ABS_PATH%/}"
 
 export PROJECT_ROOT="${ROOT}/models/cdvae"
-export HYDRA_JOBS="${ROOT}/job_runs/cdvae_benchmark_jarvis/hydra_outputs"
+export HYDRA_JOBS="${ROOT}/job_runs/cdvae_benchmark_alex/hydra_outputs"
 export HYDRA_FULL_ERROR="1"
-export WABDB_DIR="${ROOT}/job_runs/cdvae_benchmark_jarvis/wandb_outputs"
+export WABDB_DIR="${ROOT}/job_runs/cdvae_benchmark_alex/wandb_outputs"
 # export WANDB_MODE="offline"
 source scripts/wandb_api_key.sh
 
@@ -53,5 +52,4 @@ stdbuf -oL -eL python models/cdvae/scripts/evaluate.py \
     --num_evals 1 #\
     #--force_atom_types
 
-echo "Done"
-(base) [crc00042@dsis001 job_runs]$ 
+echo "Done" 
