@@ -19,12 +19,14 @@ export PROJECT_ROOT="${ABS_PATH%/}/models/cdvae"
 export HYDRA_JOBS="${ABS_PATH%/}/job_runs/cdvae_benchmark_jarvis/hydra_outputs"
 export HYDRA_FULL_ERROR="1"
 export WABDB_DIR="${ABS_PATH%/}/job_runs/cdvae_benchmark_jarvis/wandb_outputs"
-#export WANDB_MODE="offline"
+export WANDB_MODE=offline
+export WANDB_DISABLED=true
+export WANDB_ANONYMOUS=allow
 source scripts/wandb_api_key.sh
 
 python -u -m cdvae.run data=supercon expname=supercon \
 	model.num_noise_level=2 \
-	train.pl_trainer.gpus=1 \
+	train.pl_trainer.gpus=0 \
 	model.predict_property=True \
 
 echo "Done"
