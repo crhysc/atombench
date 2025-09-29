@@ -14,12 +14,13 @@ Usage
 python write_flowmm_benchmark.py \
     --pt_path  PATH/TO/consolidated_reconstruct.pt \
     --output_csv  flowmm_submission.csv \
+    --test_csv  PATH/TO/test.csv \
     [--multi_eval] \
     [--ground_truth_pt PATH/TO/gt.pt] \
     [--dump_json  all_splits.json]
 
 If the Crystal objects do **not** contain a usable identifier, the script
-falls back to sequential sample_0001, sample_0002, … IDs.
+now recovers IDs from the provided test.csv (material_id column).
 """
 from __future__ import annotations
 
@@ -83,6 +84,17 @@ def rms_check(target_atoms: list[Atoms], pred_atoms: list[Atoms]) -> float | Non
     return None
 
 
+def load_ids_from_test_csv(csv_path: Path) -> list[str]:
+    """Load original IDs from test.csv (prefers 'material_id', falls back to 'id')."""
+    df = pd.read_csv(csv_path)
+    for col in ("material_id", "id"):
+        if col in df.columns:
+            return df[col].astype(str).tolist()
+    raise ValueError(
+        f"Could not find an 'material_id' or 'id' column in {csv_path}"
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Main                                                                        #
 # --------------------------------------------------------------------------- #
@@ -92,6 +104,9 @@ def main() -> None:
                         help="FlowMM consolidated_reconstruct.pt (or similar)")
     parser.add_argument("--output_csv", required=True,
                         help="Benchmark CSV to write")
+    parser.add_argument("--test_csv", required=True,
+                        help="Path to test.csv containing the ground-truth rows "
+                             "with a 'material_id' column to recover original IDs")
     parser.add_argument("--multi_eval", action="store_true",
                         help="Set if the .pt was generated with --multi_eval")
     parser.add_argument("--ground_truth_pt",
@@ -113,14 +128,19 @@ def main() -> None:
     )
     print("CWD before write:", os.getcwd())
 
-    # Convert to JARVIS Atoms and build IDs
+    # Convert to JARVIS Atoms
     pred_atoms = [crystal_to_atoms(c) for c in pred_crys]
     tgt_atoms  = [crystal_to_atoms(c) for c in gt_crys]
 
-    ids = [build_id(c, f"sample_{i:04d}") for i, c in enumerate(gt_crys)]
+    # Recover IDs directly from test.csv (order must match the dataset order)
+    ids = load_ids_from_test_csv(Path(args.test_csv))
 
     if not (len(pred_atoms) == len(tgt_atoms) == len(ids)):
-        raise RuntimeError("Prediction / target length mismatch")
+        raise RuntimeError(
+            "Prediction / target / id length mismatch: "
+            f"{len(pred_atoms)} preds, {len(tgt_atoms)} targets, {len(ids)} ids. "
+            "Ensure test.csv corresponds to the same split and ordering."
+        )
 
     # --------------------------------------------------------------------- #
     # Write CSV                                                             #
@@ -158,3 +178,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

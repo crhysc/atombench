@@ -16,9 +16,11 @@ fi
 
 out_csv="${ROOT}/job_runs/flowmm_benchmark_alex/AI-AtomGen-prop-dft_3d-test-rmse.csv"
 
-python "${ROOT}/job_runs/flowmm_benchmark_alex/inspect_pt.py" \
+python "${ROOT}/scripts/inspect_pt.py" \
    --pt_path "${pt_path}" \
-   --output_csv "${out_csv}"
+   --output_csv "${out_csv}" \
+   --test_csv "${ROOT}/models/flowmm/data/alexandria/test.csv" \
+   --dump_json
 
 # keep it in flowmm_benchmark_alex; only move fallback
 if [[ -f "${out_csv}" ]]; then

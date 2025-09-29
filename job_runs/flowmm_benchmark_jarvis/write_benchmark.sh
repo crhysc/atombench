@@ -18,7 +18,9 @@ out_csv="${ROOT}/job_runs/flowmm_benchmark_jarvis/AI-AtomGen-prop-dft_3d-test-rm
 
 python "${ROOT}/job_runs/flowmm_benchmark_jarvis/inspect_pt.py" \
    --pt_path "${pt_path}" \
-   --output_csv "${out_csv}"
+   --output_csv "${out_csv}" \
+   --test_csv "${ROOT}/models/flowmm/data/supercon/test.csv" \
+   --dump_json
 
 # keep it in flowmm_benchmark_jarvis; only move fallback
 if [[ -f "${out_csv}" ]]; then
