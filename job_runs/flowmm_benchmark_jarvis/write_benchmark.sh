@@ -16,7 +16,7 @@ fi
 
 out_csv="${ROOT}/job_runs/flowmm_benchmark_jarvis/AI-AtomGen-prop-dft_3d-test-rmse.csv"
 
-python "${ROOT}/job_runs/flowmm_benchmark_jarvis/inspect_pt.py" \
+python "${ROOT}/scripts/inspect_pt.py" \
    --pt_path "${pt_path}" \
    --output_csv "${out_csv}" \
    --test_csv "${ROOT}/models/flowmm/data/supercon/test.csv" \
