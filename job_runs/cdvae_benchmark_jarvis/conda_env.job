@@ -6,6 +6,6 @@
 
 eval "$(conda shell.bash hook)"
 
-bash job_runs/cdvae_benchmark_jarviscreate_conda_env.sh
+bash job_runs/cdvae_benchmark_jarvis/create_conda_env.sh
 
 

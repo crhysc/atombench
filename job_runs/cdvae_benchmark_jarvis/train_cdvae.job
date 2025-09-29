@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=cdvae_alex
+#SBATCH --job-name=cdvae_jarvis
 #SBATCH --nodes=1                         
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks-per-node=4                # Run 4 tasks (processes) on the node
