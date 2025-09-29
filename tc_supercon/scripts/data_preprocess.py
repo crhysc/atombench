@@ -162,7 +162,7 @@ class AtomGPTFactory(DataPrepFactory):
 
     def write_outputs(self, df, id_train, id_val, id_test):
         # POSCARs – write once for all ids
-        id_all = id_test + id_train + id_val  # test FIRST as requested
+        id_all = id_train + id_val + id_test
         rel_paths = self.write_poscar_files(df, id_all)
 
         # Build id_prop.csv – *test* rows first so AtomGPT can treat them as test

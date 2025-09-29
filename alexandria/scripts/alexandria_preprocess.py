@@ -187,7 +187,7 @@ class BaseFactory(ABC):
 
 class AtomGPTFactory(BaseFactory):
     def dump(self, df, id_train, id_val, id_test):
-        all_idx = id_test + id_train + id_val  # test first as before
+        all_idx = id_train + id_val + id_test
         rel_paths = self._write_poscars(df, all_idx)
 
         id_prop = pd.DataFrame({
