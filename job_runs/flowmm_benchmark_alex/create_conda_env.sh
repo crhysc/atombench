@@ -15,8 +15,10 @@ fi
 cd models/flowmm
 
 mamba env create -f environment.yml -y
+set +u
 eval "$(conda shell.bash hook)"
 conda activate flowmm
+set -u
 
 # sanity checks
 python -c 'import sys; print(sys.version)'
