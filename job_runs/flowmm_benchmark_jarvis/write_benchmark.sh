@@ -20,7 +20,7 @@ python "${ROOT}/job_runs/flowmm_benchmark_jarvis/inspect_pt.py" \
    --pt_path "${pt_path}" \
    --output_csv "${out_csv}"
 
-# keep it in flowmm_benchmark_alex; only move fallback
+# keep it in flowmm_benchmark_jarvis; only move fallback
 if [[ -f "${out_csv}" ]]; then
   echo "Wrote ${out_csv}"
 elif [[ -f "${ROOT}/models/flowmm/AI-AtomGen-prop-dft_3d-test-rmse.csv" ]]; then

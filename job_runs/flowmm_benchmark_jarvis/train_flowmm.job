@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=flow_jarv           
+#SBATCH --job-name=flow_tc       
 #SBATCH --nodes=1                         
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks-per-node=4                # Run 4 tasks (processes) on the node
@@ -11,16 +11,16 @@
 # setup
 eval "$(conda shell.bash hook)"
 source scripts/wandb_api_key.sh
+source scripts/absolute_path.sh
 module load cuda/11.8
 conda activate flowmm
-set -e
 export HYDRA_FULL_ERROR="1"
-export WABDB_DIR="job_runs/flowmm_benchmark_jarvis/outputs/wandb_outputs"
-export FLOWMM_RUN_ROOT="job_runs/flowmm_benchmark_jarvis/outputs/"
+export WABDB_DIR="${ABS_PATH%/}/job_runs/flowmm_benchmark_jarvis/outputs/wandb_outputs"
+export FLOWMM_RUN_ROOT="${ABS_PATH%/}/job_runs/flowmm_benchmark_jarvis/outputs"
 
 # commands
 nvidia-smi
-bash models/flowmm/create_env_file.sh
+bash create_env_file.sh
 python -u -m scripts_model.run \
              data=supercon \
              model=null_params \
