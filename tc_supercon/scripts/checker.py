@@ -58,7 +58,7 @@ def test_ids_flowmm(dir_: Path) -> List[str]:
 
 def test_ids_atomgpt(dir_: Path, n_test: int) -> List[str]:
     id_prop = pd.read_csv(dir_ / "id_prop.csv", header=None, names=["path", "target"])
-    ids_with_ext = id_prop.path.head(n_test).tolist()
+    ids_with_ext = id_prop.path.tail(n_test).tolist()
     return [Path(p).stem for p in ids_with_ext]  # strip .vasp extension
 
 
