@@ -34,6 +34,7 @@ import numpy as np
 import pandas as pd
 from jarvis.core.atoms import Atoms, pmg_to_atoms
 from jarvis.io.vasp.inputs import Poscar
+from pymatgen.core.structure import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from tqdm import tqdm
 
@@ -94,6 +95,16 @@ def load_ids_from_test_csv(csv_path: Path) -> list[str]:
         f"Could not find an 'material_id' or 'id' column in {csv_path}"
     )
 
+def read_split(csv_path):
+    """Read a JARVIS CSV split → (list[Atoms], list[JID])."""
+    df = pd.read_csv(csv_path)
+    structs, jids = [], []
+    for _, row in df.iterrows():
+        atoms = pmg_to_atoms(Structure.from_str(row["cif"], fmt="cif"))
+        structs.append(atoms)
+        jids.append(row["material_id"])
+    return structs, jids
+
 
 # --------------------------------------------------------------------------- #
 # Main                                                                        #
@@ -127,13 +138,10 @@ def main() -> None:
         Path(args.ground_truth_pt) if args.ground_truth_pt else None,
     )
     print("CWD before write:", os.getcwd())
-
-    # Convert to JARVIS Atoms
+    del gt_crys
+    
     pred_atoms = [crystal_to_atoms(c) for c in pred_crys]
-    tgt_atoms  = [crystal_to_atoms(c) for c in gt_crys]
-
-    # Recover IDs directly from test.csv (order must match the dataset order)
-    ids = load_ids_from_test_csv(Path(args.test_csv))
+    tgt_atoms, ids  = read_split(Path(args.test_csv))
 
     if not (len(pred_atoms) == len(tgt_atoms) == len(ids)):
         raise RuntimeError(
