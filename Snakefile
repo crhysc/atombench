@@ -17,7 +17,7 @@ rule all:
     input:
         expand("{exp}.final", exp=EXPS),
         "charts.made",
-        "overlay_charts.created"
+        "overlay_charts.created",
 	"benchmarks.verified"
 
 rule make_atomgpt_env:
