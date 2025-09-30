@@ -6,5 +6,5 @@ rule train_atomgpt_alex:
         "alex_data.created"
     shell:
         """
-        sbatch --wait --gres=gpu:nvidia_a100 job_runs/agpt_benchmark_alex/train_atomgpt.job
+        sbatch --wait --gres=gpu:nvidia_a40 job_runs/agpt_benchmark_alex/train_atomgpt.job
         """
