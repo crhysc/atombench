@@ -25,7 +25,7 @@ export WANDB_ANONYMOUS=allow
 source scripts/wandb_api_key.sh
 
 python -u -m cdvae.run data=supercon expname=supercon \
-	model.num_noise_level=2 \
+	model.num_noise_level=1 \
 	train.pl_trainer.gpus=0 \
 	model.predict_property=True \
 
