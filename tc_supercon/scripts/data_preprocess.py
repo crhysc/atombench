@@ -134,7 +134,7 @@ class DataPrepFactory(ABC):
         with _pushd(self.out_dir):
             for idx in indices:
                 jid = df.iloc[idx]["material_id"]
-                fname = f"{jid}.vasp"
+                fname = f"{jid}"
 
                 # Jarvis now writes both copies *inside* self.out_dir,
                 # which are actually the same file, so only ONE file appears.
