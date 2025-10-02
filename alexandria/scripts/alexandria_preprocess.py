@@ -169,7 +169,7 @@ class BaseFactory(ABC):
         with _pushd(self.out_dir):
             for idx in indices:
                 row   = df.iloc[idx]
-                fname = f"{row['material_id']}.vasp"
+                fname = f"{row['material_id']}"
 
                 # ② let Jarvis write; both copies now end up *here*
                 Poscar(row["atoms"]).write_file(fname)
