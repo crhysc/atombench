@@ -4,7 +4,7 @@ EXPS = [
     "cdvae_benchmark_alex",
     "cdvae_benchmark_jarvis",
     "flowmm_benchmark_alex",
-    "flowmm_benchmark_jarvis"
+    "flowmm_benchmark_jarvis",
 ]
 
 for exp in EXPS:
@@ -18,8 +18,8 @@ rule all:
         expand("{exp}.final", exp=EXPS),
         "charts.made",
         "overlay_charts.created",
-        "benchmarks.verified"
-	"grid_charts.created"
+        "benchmarks.verified",
+        "grid_charts.created"
 
 rule make_atomgpt_env:
     output:
@@ -128,12 +128,13 @@ rule make_overlay_charts:
         bash scripts/make_overlay_charts.sh
         """
 
-rule make grid_charts:
+rule make_grid_charts:
     input:
-	"metrics.computed"
+        "metrics.computed"
     output:
-	touch("grid_charts.created")
+        touch("grid_charts.created")
     shell:
-	"""
-	python scripts/grid_charts.py
-	"""
+        """
+        python scripts/grid_charts.py
+        """
+
