@@ -21,6 +21,8 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from jarvis.io.vasp.inputs import Poscar
+from functools import lru_cache
+from pymatgen.core import Structure
 
 # ───────────────────────── visual style ─────────────────────────
 mpl.rcParams.update({
@@ -68,6 +70,16 @@ def find_benchmark_csv(dir_path: Path) -> Optional[Path]:
                 continue
     return latest[1] if latest else None
 
+@lru_cache(maxsize=4096)
+def _niggli_params(poscar_str: str):
+    s = Structure.from_str(_unescape_poscar(poscar_str), fmt="poscar")
+    # optional but recommended: compare on primitive cells first
+    s = s.get_primitive_structure()
+    s = s.get_reduced_structure(reduction_algo="niggli")  # Niggli canonical cell
+    a, b, c = s.lattice.abc
+    alpha, beta, gamma = s.lattice.angles  # degrees
+    return a, b, c, alpha, beta, gamma
+
 def discover_model_dirs(root: Path, tag: str) -> Dict[str, Path]:
     """Find dirs for each model for a dataset tag ('alex' or 'jarvis')."""
     out: Dict[str, Path] = {}
@@ -94,23 +106,23 @@ def _unescape_poscar(s: str) -> str:
     )
 
 def extract_series(csv_path: Path) -> Dict[str, Dict[str, List[float]]]:
-    """CSV -> {'target': {'a','c','gamma'}, 'predicted': {...}} with lists of floats."""
     out = {"target": {k: [] for k in PARAMS}, "predicted": {k: [] for k in PARAMS}}
     with csv_path.open("r", newline="", encoding="utf-8", errors="replace") as fh:
         reader = csv.DictReader(fh)
         for row in reader:
             try:
-                tgt = Poscar.from_string(_unescape_poscar(row["target"])).atoms.to_dict()
-                pred = Poscar.from_string(_unescape_poscar(row["prediction"])).atoms.to_dict()
-                out["target"]["a"].append(float(tgt["abc"][0]))
-                out["target"]["c"].append(float(tgt["abc"][2]))
-                out["target"]["gamma"].append(float(tgt["angles"][2]))
-                out["predicted"]["a"].append(float(pred["abc"][0]))
-                out["predicted"]["c"].append(float(pred["abc"][2]))
-                out["predicted"]["gamma"].append(float(pred["angles"][2]))
+                ta, tb, tc, tal, tbe, tga = _niggli_params(row["target"])
+                pa, pb, pc, pal, pbe, pga = _niggli_params(row["prediction"])
+                out["target"]["a"].append(float(ta))
+                out["target"]["c"].append(float(tc))
+                out["target"]["gamma"].append(float(tga))
+                out["predicted"]["a"].append(float(pa))
+                out["predicted"]["c"].append(float(pc))
+                out["predicted"]["gamma"].append(float(pga))
             except Exception:
                 continue
     return out
+
 
 def load_klds(metrics_path: Path) -> Dict[str, float]:
     """metrics.json -> {'a':…, 'c':…, 'gamma':…} (best-effort)."""
