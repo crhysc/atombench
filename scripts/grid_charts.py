@@ -246,8 +246,8 @@ def main():
     )
     ap.add_argument("--root", type=Path, default=Path("job_runs"), help="Root containing benchmark subdirs")
     ap.add_argument("--outdir", type=Path, default=Path("figures"), help="Directory to write PNGs")
-    ap.add_argument("--alex-title", default="Alexandria DS-A/B", help="Suptitle for Alexandria figure")
-    ap.add_argument("--jarvis-title", default="JARVIS Supercon-3D", help="Suptitle for JARVIS figure")
+    ap.add_argument("--alex-title", default="Alexandria DS-A/B Reconstruction KLD", help="Suptitle for Alexandria figure")
+    ap.add_argument("--jarvis-title", default="JARVIS Supercon-3D Reconstruction KLD", help="Suptitle for JARVIS figure")
     args = ap.parse_args()
 
     plot_dataset_grid(
