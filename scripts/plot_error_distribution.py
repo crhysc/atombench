@@ -38,6 +38,12 @@ def niggli_params_from_poscar_text(poscar_text: str):
     alpha, beta, gamma = s.lattice.angles
     return a, b, c, alpha, beta, gamma
 
+def reduced_structure_from_poscar_text(poscar_text: str) -> Structure:
+    s = Structure.from_str(poscar_text.replace("\\n", "\n"), fmt="poscar")
+    s = s.get_primitive_structure()
+    s = s.get_reduced_structure(reduction_algo="niggli")
+    return s
+
 def emd_distance(p, q, bins=None):
     p = np.asarray(p, dtype=np.float64)
     q = np.asarray(q, dtype=np.float64)
@@ -54,7 +60,6 @@ def kl_divergence(p, q):
     q /= np.sum(q)
     return stats.entropy(p, q)
 
-# ── Load data ─────────────────────────────────────────────────────────────
 # ── Load data & extract Niggli-reduced params ─────────────────────────────
 df = pd.read_csv("AI-AtomGen-prop-dft_3d-test-rmse.csv")
 
@@ -66,21 +71,20 @@ for _, row in df.iterrows():
         ta, tb, tc, tal, tbe, tga = niggli_params_from_poscar_text(row["target"])
         pa, pb, pc, pal, pbe, pga = niggli_params_from_poscar_text(row["prediction"])
 
-        x_a.append(ta);     y_a.append(pa)
-        x_b.append(tb);     y_b.append(pb)
-        x_c.append(tc);     y_c.append(pc)
+        x_a.append(ta);      y_a.append(pa)
+        x_b.append(tb);      y_b.append(pb)
+        x_c.append(tc);      y_c.append(pc)
         x_alpha.append(tal); y_alpha.append(pal)
         x_beta.append(tbe);  y_beta.append(pbe)
         x_gamma.append(tga); y_gamma.append(pga)
-
     except Exception:
         # skip malformed rows but keep going
         continue
 
 # ── Histogram helper (avoid repetition) ───────────────────────────────────
 def overlay_hist(ax, x, y, bins, xlabel, title):
-    w_x = np.ones_like(x) / len(x) * 100
-    w_y = np.ones_like(y) / len(y) * 100
+    w_x = np.ones_like(x, dtype=float) / max(1, len(x)) * 100
+    w_y = np.ones_like(y, dtype=float) / max(1, len(y)) * 100
     ax.hist(x, bins=bins, weights=w_x, alpha=0.6, color="tab:blue", label="target")
     ax.hist(y, bins=bins, weights=w_y, alpha=0.6, color="plum",    label="predicted")
     ax.set_xlabel(xlabel)
@@ -109,47 +113,39 @@ overlay_hist(plt.subplot(the_grid[0, 2]),
              xlabel=r"$\gamma$ ($^\circ$)",
              title="(c)")
 
-# ── Prepare composition / lattice system / spacegroup info ───────────────
-comp, spg = [], []
+# ── (d)-(f) derive from Niggli-reduced POSCARs directly (no 'records') ───
 x_spg, y_spg, x_Z, y_Z = [], [], [], []
 x_lat, y_lat = [], []
 
-for rec in records:
-    a1, a2 = Atoms.from_dict(rec["target"]), Atoms.from_dict(rec["predicted"])
-    x_Z.append(a1.composition.weight)
-    y_Z.append(a2.composition.weight)
-
-    # Crystal system
+for _, row in df.iterrows():
     try:
-        lat_1 = Spacegroup3D(a1).crystal_system
-    except Exception:
-        lat_1 = None
-    try:
-        lat_2 = Spacegroup3D(a2).crystal_system
-    except Exception:
-        lat_2 = None
-    x_lat.append(lat_1)
-    y_lat.append(lat_2)
+        s_t = reduced_structure_from_poscar_text(row["target"])
+        s_p = reduced_structure_from_poscar_text(row["prediction"])
 
-    # Spacegroup numbers
-    try:
-        sga1 = SpacegroupAnalyzer(a1.pymatgen_converter(), symprec=0.1)
-        sga2 = SpacegroupAnalyzer(a2.pymatgen_converter(), symprec=0.1)
-        x_spg.append(sga1.get_space_group_number())
-        y_spg.append(sga2.get_space_group_number())
-    except Exception:
-        pass
+        # molecular weight (amu)
+        x_Z.append(s_t.composition.weight)
+        y_Z.append(s_p.composition.weight)
 
-# ── (d) **Spacegroup** – now using IDENTICAL bins for perfect overlay ────
+        # space group and crystal system via pymatgen
+        sga_t = SpacegroupAnalyzer(s_t, symprec=0.1)
+        sga_p = SpacegroupAnalyzer(s_p, symprec=0.1)
+        x_spg.append(sga_t.get_space_group_number())
+        y_spg.append(sga_p.get_space_group_number())
+        x_lat.append(sga_t.get_crystal_system())  # "tetragonal", "cubic", ...
+        y_lat.append(sga_p.get_crystal_system())
+    except Exception:
+        continue
+
+# ── (d) Spacegroup histogram (identical bins) ────────────────────────────
 ax_spg = plt.subplot(the_grid[1, 0])
-bins_spg = np.arange(1, 231, 10)           # identical bin edges
+bins_spg = np.arange(1, 231, 10)
 overlay_hist(ax_spg,
              x_spg, y_spg,
              bins=bins_spg,
              xlabel="Spacegroup number",
              title="(d)").set_ylabel("Materials dist.")
 
-# ── (e) Bravais lattice counts ───────────────────────────────────────────
+# ── (e) Crystal system counts ────────────────────────────────────────────
 lat_order = ["triclinic", "monoclinic", "orthorhombic",
              "tetragonal", "trigonal", "hexagonal", "cubic"]
 lat_to_idx = {name: i for i, name in enumerate(lat_order)}
@@ -177,12 +173,11 @@ ax_lat.bar(pos, y_lat_counts,
            label="predicted",
            color="plum")
 
-# ticks now numbered 1–7 instead of names
+# ticks numbered 1–7
 ax_lat.set_xticks(pos)
 ax_lat.set_xticklabels((pos + 1).tolist(), rotation=0, ha="center")
-ax_lat.set_xlabel("Bravais lattice number")
+ax_lat.set_xlabel("Crystal system number")
 ax_lat.set_title("(e)")
-
 
 # ── (f) Molecular weight ────────────────────────────────────────────────
 overlay_hist(plt.subplot(the_grid[1, 2]),
@@ -202,14 +197,14 @@ bench_lookup = {
     "flowmm_benchmark_jarvis":"FlowMM JARVIS"
 }
 fig.subplots_adjust(top=0.88)
-plt.suptitle(bench_lookup.get(Path.cwd().parts[-1], Path.cwd().name),
-             fontsize=30)
+plt.suptitle(bench_lookup.get(Path.cwd().name), fontsize=30)
 
 out_png = f"{Path.cwd().name}_distribution.png"
 plt.savefig(out_png, format="png")
 plt.close()
 print(f"✓ saved {out_png}")
-# ── Metrics (match reference script exactly) ───────────────────────────────
+
+# ── Metrics (match reference script exactly) ─────────────────────────────
 # MAE on raw arrays
 mae_a     = float(mean_absolute_error(x_a, y_a))
 mae_b     = float(mean_absolute_error(x_b, y_b))
@@ -219,9 +214,6 @@ mae_beta  = float(mean_absolute_error(x_beta,  y_beta))
 mae_gamma = float(mean_absolute_error(x_gamma, y_gamma))
 
 # KLD on raw value arrays normalized by their sums (no bins)
-# Uses the kl_divergence(p,q) you already defined above:
-#   p = np.asarray(p, np.float64); q = np.asarray(q, np.float64)
-#   p /= p.sum(); q /= q.sum(); return stats.entropy(p,q)
 kld_a     = float(kl_divergence(x_a,     y_a))
 kld_b     = float(kl_divergence(x_b,     y_b))
 kld_c     = float(kl_divergence(x_c,     y_c))
@@ -229,7 +221,7 @@ kld_alpha = float(kl_divergence(x_alpha, y_alpha))
 kld_beta  = float(kl_divergence(x_beta,  y_beta))
 kld_gamma = float(kl_divergence(x_gamma, y_gamma))
 
-# ── Write metrics.json in the schema expected by bar_chart.py ─────────────
+# ── Write metrics.json in the schema expected by bar_chart.py ────────────
 metrics = {
     "benchmark_name": Path.cwd().name,
     "KLD": {
