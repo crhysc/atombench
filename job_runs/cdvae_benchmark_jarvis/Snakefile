@@ -1,3 +1,4 @@
+# job_runs/cdvae_benchmark_jarvis/Snakefile
 rule train_cdvae_jarvis:
     output:
         touch("sentinels/cdvae_benchmark_jarvis.trained")
@@ -29,8 +30,8 @@ rule benchmark_cdvae_jarvis:
         "sentinels/jarvis_data.created",
         "sentinels/cdvae_benchmark_jarvis.trained",
         "sentinels/cdvae_benchmark_jarvis.inferred"
-
     shell:
         """
         sbatch --wait job_runs/cdvae_benchmark_jarvis/benchmark_cdvae.job
         """
+
