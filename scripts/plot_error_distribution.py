@@ -6,7 +6,6 @@ from jarvis.core.atoms import Atoms
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error
 from scipy.special import rel_entr
-import statistics
 from scipy.stats import wasserstein_distance
 from scipy import stats
 import numpy as np
@@ -59,6 +58,27 @@ def kl_divergence(p, q):
     p /= np.sum(p)
     q /= np.sum(q)
     return stats.entropy(p, q)
+
+# ── RMSE (StructureMatcher) helper mirroring your snippet ────────────────
+def compute_atomgen_rmse(df: pd.DataFrame) -> float:  # ADDED
+    """Mean RMS distance from pymatgen StructureMatcher between prediction and target."""  # ADDED
+    matcher = StructureMatcher(stol=0.5, angle_tol=10, ltol=0.3)  # ADDED
+    rms_vals = []  # ADDED
+    for _, mm in df.iterrows():  # ADDED
+        try:  # ADDED
+            atoms_target = Poscar.from_string((mm["target"].replace("\\n", "\n"))).atoms  # ADDED
+            atoms_pred   = Poscar.from_string((mm["prediction"].replace("\\n", "\n"))).atoms  # ADDED
+            rms_dist = matcher.get_rms_dist(  # ADDED
+                atoms_pred.pymatgen_converter(),  # ADDED
+                atoms_target.pymatgen_converter(),  # ADDED
+            )  # ADDED
+            if rms_dist is not None:  # ADDED
+                rms_vals.append(float(rms_dist[0]))  # first element is RMS  # ADDED
+        except Exception:  # ADDED
+            continue  # ADDED
+    if len(rms_vals) == 0:  # ADDED
+        return float("nan")  # ADDED
+    return round(float(np.mean(rms_vals)), 4)  # ADDED
 
 # ── Load data & extract Niggli-reduced params ─────────────────────────────
 df = pd.read_csv("AI-AtomGen-prop-dft_3d-test-rmse.csv")
@@ -221,6 +241,9 @@ kld_alpha = float(kl_divergence(x_alpha, y_alpha))
 kld_beta  = float(kl_divergence(x_beta,  y_beta))
 kld_gamma = float(kl_divergence(x_gamma, y_gamma))
 
+# RMSE via StructureMatcher (AtomGen-style)  --------------------------------
+rmse_atomgen = compute_atomgen_rmse(df)  # ADDED
+
 # ── Write metrics.json in the schema expected by bar_chart.py ────────────
 metrics = {
     "benchmark_name": Path.cwd().name,
@@ -241,7 +264,10 @@ metrics = {
             "beta":  mae_beta,
             "gamma": mae_gamma,
         }
-    }
+    },
+    "RMSE": {                      # ADDED
+        "AtomGen": rmse_atomgen    # ADDED
+    }                               # ADDED
 }
 with open("metrics.json", "w") as f:
     json.dump(metrics, f, indent=2)
