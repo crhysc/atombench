@@ -156,7 +156,7 @@ def create_tc_histogram(
         "Distribution of $T_{c}$ in the \n Alexandria DS-A / DS-B Dataset",
         fontsize=38
     )
-    plt.xticks(ticks=np.linspace(0,45,10), fontsize=23)
+    plt.xticks(ticks=np.linspace(0,35,10), fontsize=23)
     plt.yticks(fontsize=23)
     plt.savefig(
         output_dir / "alex_tc_histogram.png",
