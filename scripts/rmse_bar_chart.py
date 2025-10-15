@@ -97,15 +97,30 @@ def style_axes(ax, ylabel, title):
 
 # ───────────────────── plot ─────────────────────
 fig, ax = plt.subplots(figsize=(10, 8))
-ax.bar(x_labels, heights, edgecolor='k', color=colors)
 
-# Legend: one color per model
+pos = np.arange(len(x_labels))
+bar_width = 0.55  # ↓ smaller = thinner bars (try 0.5, 0.45, etc.)
+
+ax.bar(
+    pos,
+    heights,
+    width=bar_width,
+    edgecolor='k',
+    linewidth=0.8,   # outline thickness (optional)
+    color=colors
+)
+
+# keep your pretty labels
+ax.set_xticks(pos)
+ax.set_xticklabels(x_labels, rotation=30, ha='right', fontsize=13)
+
+# Legend: one color per model (unchanged)
 handles = [
     mpatches.Patch(color=model_colors["AtomGPT"], label="AtomGPT"),
     mpatches.Patch(color=model_colors["CDVAE"],  label="CDVAE"),
     mpatches.Patch(color=model_colors["FlowMM"], label="FlowMM"),
 ]
-ax.legend(handles=handles, title='Model', title_fontsize=15, fontsize=15)
+ax.legend(handles=handles, title_fontsize=15, fontsize=15)
 
 style_axes(
     ax,
@@ -116,5 +131,3 @@ style_axes(
 out_path = ROOT / 'rmse_bar_chart.png'
 plt.savefig(out_path, dpi=300)
 plt.close(fig)
-print(f"DEBUG: Wrote {out_path}", file=sys.stderr)
-
