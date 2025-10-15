@@ -26,9 +26,18 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from jarvis.core.atoms import Atoms as JarvisAtoms
 from jarvis.db.figshare import data as jarvis_data
 
-# ── Matplotlib defaults (match your example) ───────────────────────────────
-mpl.rcParams["font.family"] = "serif"
+# ── Matplotlib defaults (match the grid subplots) ─────────────────────────
+mpl.rcParams.update({  # UPDATED
+    "font.family": "serif",        # UPDATED
+    "axes.linewidth": 0.8,         # UPDATED (border/spine weight)
+    "patch.linewidth": 0.0,        # UPDATED (shapes have no edge stroke)
+    "font.serif": ["Times New Roman", "Times", "Nimbus Roman No9 L", "DejaVu Serif", "STIX"],  # UPDATED
+})
 plt.rcParams.update({"font.size": 18})
+
+# Same palette as grid_charts.py
+WVU_BLUE = "#002855"  # target / JARVIS        # UPDATED
+WVU_GOLD = "#EEAA00"  # predicted / Alexandria # UPDATED
 
 CRYSYS_ORDER = [
     "triclinic",
@@ -76,6 +85,12 @@ def _weights_percent(n: int) -> np.ndarray:
 
 def _ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
+
+
+def _style_axes_like_grid(ax: plt.Axes) -> None:  # UPDATED
+    """Match the axis/tick look of the 3×3 grid subplots."""
+    ax.tick_params(axis="both", which="major", width=1.4, length=7)  # UPDATED
+    ax.minorticks_off()                                              # UPDATED
 
 
 # ── Data collection (Alexandria CSV) ───────────────────────────────────────
@@ -172,35 +187,48 @@ def plot_tc_overlay(
     w_a = _weights_percent(len(tc_a))
     w_j = _weights_percent(len(tc_j))
 
-    # Alexandria (plum), JARVIS (tab:blue) — match your overlay look
-    ax.hist(
+    # JARVIS (blue), Alexandria (gold) — match grid palette
+    ax.hist(  # UPDATED
         tc_j,
         bins=bins,
         weights=w_j,
-        alpha=0.6,
+        histtype="stepfilled",   # UPDATED
+        alpha=0.68,              # UPDATED
+        edgecolor="none",        # UPDATED
         label="JARVIS Supercon-3D",
-        color="#002855",
+        color=WVU_BLUE,
     )
-    ax.hist(
+    ax.hist(  # UPDATED
         tc_a,
         bins=bins,
         weights=w_a,
-        alpha=0.6,
+        histtype="stepfilled",   # UPDATED
+        alpha=0.68,              # UPDATED
+        edgecolor="none",        # UPDATED
         label="Alexandria DS-A/DS-B",
-        color="#EEAA00",
+        color=WVU_GOLD,
     )
 
     ax.set_xlabel(r"$T_c$ (K)", fontsize=30)
-    ax.set_ylabel("Materials dist. (%)", fontsize=30)
+    ax.set_ylabel("Materials Percentage (%)", fontsize=30)  # UPDATED label to match grid wording
     ax.set_title("Distribution of $T_c$\nJARVIS vs Alexandria", fontsize=38)
     ax.set_xticks(np.linspace(tc_min, tc_max, 10))
     ax.tick_params(axis="x", labelsize=23)
     plt.yticks(fontsize=23)
-    # ax.grid(axis="y", linestyle="--", alpha=0.3)
-    ax.legend(fontsize=20)
+
+    _style_axes_like_grid(ax)  # UPDATED
+
+    # Legend frame style like grid
+    leg = ax.legend(fontsize=20, frameon=True)  # UPDATED
+    if leg:  # UPDATED
+        lf = leg.get_frame()
+        lf.set_alpha(0.95)
+        lf.set_facecolor("white")
+        lf.set_edgecolor("black")
+        lf.set_linewidth(0.6)
 
     _ensure_dir(out_png.parent)
-    plt.savefig(out_png, format="png", dpi=200)
+    plt.savefig(out_png, format="png", dpi=200, bbox_inches="tight")  # UPDATED
     plt.close(fig)
 
 
@@ -227,23 +255,26 @@ def plot_crysys_overlay(
 
     fig, ax = plt.subplots(figsize=(11.5, 11.5), constrained_layout=True)
 
-    # Overlay bars at identical positions (alpha) to mimic your style
     bar_w = 0.6
-    ax.bar(
-        x,
-        p_j,
+    # JARVIS (blue)
+    ax.bar(  # UPDATED
+        x, p_j,
         width=bar_w,
-        alpha=0.6,
+        alpha=0.68,             # UPDATED
+        linewidth=0.0,          # UPDATED (no stroke)
+        edgecolor="none",       # UPDATED
         label="JARVIS Supercon-3D",
-        color="#002855",
+        color=WVU_BLUE,
     )
-    ax.bar(
-        x,
-        p_a,
+    # Alexandria (gold)
+    ax.bar(  # UPDATED
+        x, p_a,
         width=bar_w,
-        alpha=0.6,
+        alpha=0.68,             # UPDATED
+        linewidth=0.0,          # UPDATED
+        edgecolor="none",       # UPDATED
         label="Alexandria DS-A/DS-B",
-        color="#EEAA00",
+        color=WVU_GOLD,
     )
 
     ax.set_xticks(x)
@@ -251,13 +282,22 @@ def plot_crysys_overlay(
     ax.set_xlabel("Crystal system", fontsize=30)
     ax.set_ylabel("% of Total Structures", fontsize=30)
     ax.set_title("Crystal Systems \n JARVIS vs Alexandria", fontsize=38)
-    # ax.grid(axis="y", linestyle="--", alpha=0.3)
-    ax.legend(fontsize=23)
     plt.xticks(fontsize=23)
     plt.yticks(fontsize=23)
 
+    _style_axes_like_grid(ax)  # UPDATED
+
+    # Legend frame style like grid
+    leg = ax.legend(fontsize=23, frameon=True)  # UPDATED
+    if leg:  # UPDATED
+        lf = leg.get_frame()
+        lf.set_alpha(0.95)
+        lf.set_facecolor("white")
+        lf.set_edgecolor("black")
+        lf.set_linewidth(0.6)
+
     _ensure_dir(out_png.parent)
-    plt.savefig(out_png, format="png", dpi=200)
+    plt.savefig(out_png, format="png", dpi=200, bbox_inches="tight")  # UPDATED
     plt.close(fig)
 
 
@@ -442,3 +482,4 @@ def main(argv: Optional[List[str]] = None):
 
 if __name__ == "__main__":
     main()
+
