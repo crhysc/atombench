@@ -182,7 +182,7 @@ def plot_tc_overlay(
 ) -> None:
     bins = np.arange(tc_min, tc_max + tc_step, tc_step)
 
-    fig, ax = plt.subplots(figsize=(11.5, 11.5), constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(11.5, 11.1), constrained_layout=True)
 
     w_a = _weights_percent(len(tc_a))
     w_j = _weights_percent(len(tc_j))
@@ -210,16 +210,16 @@ def plot_tc_overlay(
     )
 
     ax.set_xlabel(r"$T_c$ (K)", fontsize=30)
-    ax.set_ylabel("Materials Percentage (%)", fontsize=30)  # UPDATED label to match grid wording
-    ax.set_title("Distribution of $T_c$\nJARVIS vs Alexandria", fontsize=38)
-    ax.set_xticks(np.linspace(tc_min, tc_max, 10))
+    ax.set_ylabel("% of Total Structures", fontsize=30)  # UPDATED label to match grid wording
+    ax.set_title("Distribution of T$_c$\nJARVIS vs Alexandria", fontsize=38)
+    ax.set_xticks(np.linspace(tc_min, tc_max, 5))
     ax.tick_params(axis="x", labelsize=23)
     plt.yticks(fontsize=23)
 
     _style_axes_like_grid(ax)  # UPDATED
 
     # Legend frame style like grid
-    leg = ax.legend(fontsize=20, frameon=True)  # UPDATED
+    leg = ax.legend(fontsize=25, frameon=True)  # UPDATED
     if leg:  # UPDATED
         lf = leg.get_frame()
         lf.set_alpha(0.95)
@@ -288,7 +288,7 @@ def plot_crysys_overlay(
     _style_axes_like_grid(ax)  # UPDATED
 
     # Legend frame style like grid
-    leg = ax.legend(fontsize=23, frameon=True)  # UPDATED
+    leg = ax.legend(fontsize=25, frameon=True)  # UPDATED
     if leg:  # UPDATED
         lf = leg.get_frame()
         lf.set_alpha(0.95)
