@@ -125,7 +125,7 @@ ax.legend(handles=handles, title_fontsize=15, fontsize=15)
 
 style_axes(
     ax,
-    ylabel='Root Mean Squared Error (Å)',
+    ylabel='Average RMSE (Å)',
     title='Average Root Mean Squared Error \nfor Predicted vs. Target Atomic Coordinates'
 )
 
