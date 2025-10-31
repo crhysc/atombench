@@ -59,26 +59,32 @@ def kl_divergence(p, q):
     q /= np.sum(q)
     return stats.entropy(p, q)
 
+# NEW: find the directory that contains benchmarks.csv (walk up from CWD)
+def find_benchmarks_dir(start: Path) -> Path | None:
+    for d in [start, *start.parents]:
+        if (d / "benchmarks.csv").is_file():
+            return d
+    return None
+
 # ── RMSE (StructureMatcher) helper mirroring your snippet ────────────────
-def compute_atomgen_rmse(df: pd.DataFrame) -> float:  # ADDED
-    """Mean RMS distance from pymatgen StructureMatcher between prediction and target."""  # ADDED
-    matcher = StructureMatcher(stol=0.5, angle_tol=10, ltol=0.3)  # ADDED
-    rms_vals = []  # ADDED
-    for _, mm in df.iterrows():  # ADDED
-        try:  # ADDED
-            atoms_target = Poscar.from_string((mm["target"].replace("\\n", "\n"))).atoms  # ADDED
-            atoms_pred   = Poscar.from_string((mm["prediction"].replace("\\n", "\n"))).atoms  # ADDED
-            rms_dist = matcher.get_rms_dist(  # ADDED
-                atoms_pred.pymatgen_converter(),  # ADDED
-                atoms_target.pymatgen_converter(),  # ADDED
-            )  # ADDED
-            if rms_dist is not None:  # ADDED
-                rms_vals.append(float(rms_dist[0]))  # first element is RMS  # ADDED
-        except Exception:  # ADDED
-            continue  # ADDED
-    if len(rms_vals) == 0:  # ADDED
-        return float("nan")  # ADDED
-    return round(float(np.mean(rms_vals)), 4)  # ADDED
+def compute_atomgen_rmse(df: pd.DataFrame) -> float:
+    matcher = StructureMatcher(stol=0.5, angle_tol=10, ltol=0.3)
+    rms_vals = []
+    for _, mm in df.iterrows():
+        try:
+            atoms_target = Poscar.from_string((mm["target"].replace("\\n", "\n"))).atoms
+            atoms_pred   = Poscar.from_string((mm["prediction"].replace("\\n", "\n"))).atoms
+            rms_dist = matcher.get_rms_dist(
+                atoms_pred.pymatgen_converter(),
+                atoms_target.pymatgen_converter(),
+            )
+            if rms_dist is not None:
+                rms_vals.append(float(rms_dist[0]))  # first element is RMS
+        except Exception:
+            continue
+    if len(rms_vals) == 0:
+        return float("nan")
+    return round(float(np.mean(rms_vals)), 4)
 
 # ── Load data & extract Niggli-reduced params ─────────────────────────────
 df = pd.read_csv("AI-AtomGen-prop-dft_3d-test-rmse.csv")
@@ -98,7 +104,6 @@ for _, row in df.iterrows():
         x_beta.append(tbe);  y_beta.append(pbe)
         x_gamma.append(tga); y_gamma.append(pga)
     except Exception:
-        # skip malformed rows but keep going
         continue
 
 # ── Histogram helper (avoid repetition) ───────────────────────────────────
@@ -181,19 +186,9 @@ ax_lat = plt.subplot(the_grid[1, 1])
 bar_w = 0.4
 pos = np.arange(len(lat_order))
 
-# overlay bars at the same positions
-ax_lat.bar(pos, x_lat_counts,
-           width=bar_w,
-           alpha=0.6,
-           label="target",
-           color="tab:blue")
-ax_lat.bar(pos, y_lat_counts,
-           width=bar_w,
-           alpha=0.6,
-           label="predicted",
-           color="plum")
+ax_lat.bar(pos, x_lat_counts, width=bar_w, alpha=0.6, label="target",   color="tab:blue")
+ax_lat.bar(pos, y_lat_counts, width=bar_w, alpha=0.6, label="predicted", color="plum")
 
-# ticks numbered 1–7
 ax_lat.set_xticks(pos)
 ax_lat.set_xticklabels((pos + 1).tolist(), rotation=0, ha="center")
 ax_lat.set_xlabel("Crystal system number")
@@ -225,7 +220,6 @@ plt.close()
 print(f"✓ saved {out_png}")
 
 # ── Metrics (match reference script exactly) ─────────────────────────────
-# MAE on raw arrays
 mae_a     = float(mean_absolute_error(x_a, y_a))
 mae_b     = float(mean_absolute_error(x_b, y_b))
 mae_c     = float(mean_absolute_error(x_c, y_c))
@@ -233,7 +227,6 @@ mae_alpha = float(mean_absolute_error(x_alpha, y_alpha))
 mae_beta  = float(mean_absolute_error(x_beta,  y_beta))
 mae_gamma = float(mean_absolute_error(x_gamma, y_gamma))
 
-# KLD on raw value arrays normalized by their sums (no bins)
 kld_a     = float(kl_divergence(x_a,     y_a))
 kld_b     = float(kl_divergence(x_b,     y_b))
 kld_c     = float(kl_divergence(x_c,     y_c))
@@ -241,10 +234,8 @@ kld_alpha = float(kl_divergence(x_alpha, y_alpha))
 kld_beta  = float(kl_divergence(x_beta,  y_beta))
 kld_gamma = float(kl_divergence(x_gamma, y_gamma))
 
-# RMSE via StructureMatcher (AtomGen-style)  --------------------------------
-rmse_atomgen = compute_atomgen_rmse(df)  # ADDED
+rmse_atomgen = compute_atomgen_rmse(df)
 
-# ── Write metrics.json in the schema expected by bar_chart.py ────────────
 metrics = {
     "benchmark_name": Path.cwd().name,
     "KLD": {
@@ -265,10 +256,30 @@ metrics = {
             "gamma": mae_gamma,
         }
     },
-    "RMSE": {                      # ADDED
-        "AtomGen": rmse_atomgen    # ADDED
-    }                               # ADDED
+    "RMSE": {
+        "AtomGen": rmse_atomgen
+    }
 }
+
+# ── NEW: append metrics_metadata from the directory containing benchmarks.csv ──
+benchmarks_dir = find_benchmarks_dir(Path.cwd())
+if benchmarks_dir is None:
+    print("ℹ️  benchmarks.csv not found in current or parent directories; skipping metrics_metadata.")
+else:
+    meta_path = benchmarks_dir / "metrics_metadata.json"
+    if meta_path.is_file():
+        try:
+            with open(meta_path, "r") as mf:
+                metrics_metadata = json.load(mf)
+            # add at the very end of the JSON (insertion-ordered dict)
+            metrics["metrics_metadata"] = metrics_metadata
+            print(f"✓ appended metrics_metadata from {meta_path}")
+        except Exception as e:
+            print(f"⚠️  failed to read metrics_metadata.json at {meta_path}: {e}")
+    else:
+        print(f"ℹ️  {meta_path} not found; skipping metrics_metadata.")
+
+# ── Write metrics.json ────────────────────────────────────────────────────
 with open("metrics.json", "w") as f:
     json.dump(metrics, f, indent=2)
 print("✓ wrote metrics.json")
