@@ -14,6 +14,7 @@ Documentation about activating Conda environments using this command can be foun
 [user@hpc-cluster ~]$ eval "$(conda shell.bash hook)"
 (base) [user@hpc-cluster ~]$
 ```
+Moreover, run `depcheck.sh` to determine if your system has the correct dependencies.
 
 #### Step 2: Download this repository
 Download this repository using the following command:
