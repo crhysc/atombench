@@ -33,10 +33,10 @@ git submodule update --init --recursive
 #### Step 4: Create and activate a `conda` environment to host Atombench Python dependencies
 Normally, it is best-practice to avoid installing Python packages to one's base `conda` environment. Make an environment to store required Python deps:
 ```bash
-conda create --name atombench python=3.11 -y
+conda create --name atombench python=3.11 pip -y
 conda activate atombench
 ```
-NOTE: Becayse we are including `python=3.11` in the `conda create` command, we can use both `conda install` and `pip install` to install Python packages into the newly created `atombench` environment.
+
 
 #### Step 4: Download Python dependencies
 This repository recomputes the AtomBench benchmarks using a semi-automated `Snakemake` pipeline. For more information about `Snakemake`, visit their [documentation](https://snakemake.readthedocs.io/en/stable/) site. Moreover, we use `uv` to speed up downstream package installation, and we use `DVC` to automate dataset preprocessing.
