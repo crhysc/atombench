@@ -63,7 +63,7 @@ export ABS_PATH="path/to/this/repository"
 #### Step 2: Activate the `Snakemake` pipeline to recompute the benchmarks
 As mentioned previously, we use an automated pipeline to compute these benchmarks. After the previous setup steps have been completed, run the pipeline using the following command:
 ```bash
-snakemake all --cores all
+snakemake -p --verbose all --cores all
 ```
 
 ## Generative Model Installation & Usage Tutorials
