@@ -1,9 +1,153 @@
+#!/usr/bin/env bash
+# depcheck.sh — verbose dependency checker for Linux + Slurm + CUDA module + conda hook
+# Usage: bash depcheck.sh
+#
+# This script is intentionally chatty: it explains *exactly* what failed and how to fix it.
+
+set -u  # treat unset vars as errors (but we won't use set -e; we want custom diagnostics)
+
+PASS_COUNT=0
+FAIL_COUNT=0
+
+hr() { printf '%s\n' "------------------------------------------------------------"; }
+ok() { printf '✅ %s\n' "$1"; PASS_COUNT=$((PASS_COUNT+1)); }
+warn() { printf '⚠️  %s\n' "$1"; }
+fail() { printf '❌ %s\n' "$1"; FAIL_COUNT=$((FAIL_COUNT+1)); }
+
+section() {
+  hr
+  printf '%s\n' "$1"
+  hr
+}
+
+# Run a command, capture output, and report with context.
+run_capture() {
+  # args: <label> <command...>
+  local label="$1"; shift
+  local out rc
+  out="$("$@" 2>&1)"; rc=$?
+  printf '%s\n' "$out"
+  return "$rc"
+}
+
+# ---------- 1) Linux check ----------
+check_linux() {
+  section "1) OS check (must be Linux)"
+
+  local uname_s
+  uname_s="$(uname -s 2>/dev/null || true)"
+
+  if [[ "$uname_s" == "Linux" ]]; then
+    ok "Detected Linux (uname -s = Linux)."
+    return 0
+  fi
+
+  fail "Not Linux: uname -s returned '${uname_s:-<empty>}'.
+This script expects a Linux environment (typical for HPC login nodes)."
+  return 1
+}
+
+# ---------- 2) Slurm present ----------
+check_slurm() {
+  section "2) Slurm check (must have Slurm commands available)"
+
+  # Prefer squeue; fallback to sbatch/sinfo
+  if command -v squeue >/dev/null 2>&1; then
+    ok "Found Slurm command: squeue ($(command -v squeue))."
+  elif command -v sbatch >/dev/null 2>&1; then
+    ok "Found Slurm command: sbatch ($(command -v sbatch))."
+  elif command -v sinfo >/dev/null 2>&1; then
+    ok "Found Slurm command: sinfo ($(command -v sinfo))."
+  else
+    fail "Slurm does not appear to be present in PATH.
+Tried: squeue, sbatch, sinfo.
+Fix: load your site environment/modules, or use the correct login node, or add Slurm bin to PATH."
+    return 1
+  fi
+
+  # Optional: sanity-call squeue (doesn't require allocations, but may fail if Slurm is down)
+  if command -v squeue >/dev/null 2>&1; then
+    local out rc
+    out="$(squeue -h 2>&1)"; rc=$?
+    if [[ $rc -eq 0 ]]; then
+      ok "squeue runs successfully."
+    else
+      warn "squeue exists but returned a non-zero exit code ($rc).
+Output:
+$out
+This may indicate a transient Slurm/controller issue, or a permissions/config problem."
+    fi
+  fi
+
+  return 0
+}
+
+# ---------- 3) module load cuda/11.8 works ----------
+check_cuda_module() {
+  section "3) Environment Modules check (module load cuda/11.8 must work)"
+
+  # Many clusters define `module` as a shell function; ensure it's available.
+  if ! type module >/dev/null 2>&1; then
+    warn "The 'module' command is not currently available in this shell."
+    warn "Attempting to initialize Environment Modules (common paths)..."
+
+    # Common init scripts across distros/HPC sites:
+    if [[ -f /etc/profile.d/modules.sh ]]; then
+      # shellcheck disable=SC1091
+      source /etc/profile.d/modules.sh
+    elif [[ -f /usr/share/Modules/init/bash ]]; then
+      # shellcheck disable=SC1091
+      source /usr/share/Modules/init/bash
+    elif [[ -f /usr/share/modules/init/bash ]]; then
+      # shellcheck disable=SC1091
+      source /usr/share/modules/init/bash
+    fi
+  fi
+
+  if ! type module >/dev/null 2>&1; then
+    fail "Still cannot find the 'module' command after attempted initialization.
+Fix options:
+- Start a login shell (e.g., 'bash -l') so /etc/profile is sourced
+- Ask your cluster docs where modules are initialized
+- Ensure Environment Modules / Lmod is installed on the node"
+    return 1
+  fi
+
+  # Try loading CUDA 11.8
+  local out rc
+  out="$(module load cuda/11.8 2>&1)"; rc=$?
+  if [[ $rc -eq 0 ]]; then
+    ok "module load cuda/11.8 succeeded."
+  else
+    fail "module load cuda/11.8 FAILED (exit code $rc).
+Output:
+$out
+Likely causes:
+- That module name/version doesn't exist on this system
+- You need to run 'module avail cuda' to see valid CUDA modules
+- Your modules cache or MODULEPATH is misconfigured"
+    return 1
+  fi
+
+  # Optional: verify nvcc or nvidia-smi if expected
+  if command -v nvcc >/dev/null 2>&1; then
+    ok "nvcc is now in PATH ($(command -v nvcc))."
+  else
+    warn "nvcc not found in PATH even after loading cuda/11.8.
+This can be normal on some sites (they may only set runtime libs). If you need nvcc, check the module’s contents."
+  fi
+
+  return 0
+}
+
+# ---------- 4) conda hook works + "reloads" base after deactivate ----------
 check_conda_hook() {
   section "4) Conda hook check (eval \"\$(conda shell.bash hook)\" + base availability)"
 
+  # Run in a clean login shell, but feed the script via heredoc to avoid quoting hazards.
   local out rc
   out="$(
-    bash -l 2>&1 <<'BASH'
+    bash -lc "$(cat <<'CONDA_CHECK_SCRIPT'
 set -u
 
 echo "[INFO] Shell: $0"
@@ -13,7 +157,7 @@ ok()   { echo "✅ $*"; }
 warn() { echo "⚠️  $*"; }
 fail() { echo "❌ $*"; exit 1; }
 
-# 4a) Ensure "conda" executable exists
+# 4a) Ensure conda executable exists somewhere (hook needs it)
 if ! command -v conda >/dev/null 2>&1; then
   fail "conda executable not found in PATH.
 Fix: add Miniconda/Anaconda bin to PATH or source conda.sh, e.g.
@@ -22,7 +166,7 @@ or ensure your ~/.bashrc conda init block runs in login shells."
 fi
 ok "Found conda executable: $(command -v conda)"
 
-# 4b) Try to deactivate (may be a no-op)
+# 4b) Try to deactivate (may be harmless if not active)
 echo "[INFO] Attempting conda deactivate (may be a no-op)..."
 conda deactivate >/dev/null 2>&1 || true
 
@@ -38,15 +182,15 @@ eval "$HOOK_OUT" || fail "eval of conda hook output failed."
 
 echo "[INFO] After hook: $(type -t conda 2>/dev/null || echo "<missing>")"
 
-# 4d) Verify base directory
+# 4d) Verify that conda is now properly initialized
 BASE_DIR="$(conda info --base 2>/dev/null || true)"
 if [[ -z "$BASE_DIR" ]]; then
-  fail "conda appears present, but 'conda info --base' returned nothing.
+  fail "conda appears present, but conda info --base did not return a base directory.
 This suggests partial/broken initialization."
 fi
 ok "conda base directory: $BASE_DIR"
 
-# 4e) Activate base
+# 4e) Confirm we can activate base (this is the closest meaningful reload test)
 echo "[INFO] Attempting: conda activate base"
 ACT_OUT="$(conda activate base 2>&1)" || {
   echo "$ACT_OUT"
@@ -56,17 +200,20 @@ ACT_OUT="$(conda activate base 2>&1)" || {
 if [[ "${CONDA_DEFAULT_ENV:-}" == "base" ]]; then
   ok "Successfully activated base environment (CONDA_DEFAULT_ENV=base)."
 else
-  warn "conda activate base did not set CONDA_DEFAULT_ENV=base (got: ${CONDA_DEFAULT_ENV:-<unset>})."
+  warn "conda activate base did not set CONDA_DEFAULT_ENV=base (got: ${CONDA_DEFAULT_ENV:-<unset>}).
+Activation may still have worked, but environment variables look odd."
 fi
 
 if [[ "$(type -t conda)" == "function" ]]; then
   ok "conda is initialized as a shell function (good)."
 else
-  warn "conda is not a shell function after hook (type -t conda = $(type -t conda))."
+  warn "conda is not a shell function after hook (type -t conda = $(type -t conda)).
+This can still work, but usually indicates incomplete shell integration."
 fi
 
 echo "[INFO] Conda hook test complete."
-BASH
+CONDA_CHECK_SCRIPT
+)"
   )"
   rc=$?
 
@@ -80,3 +227,26 @@ BASH
     return 1
   fi
 }
+
+main() {
+  section "Dependency checker (Linux + Slurm + CUDA module + conda hook)"
+
+  check_linux || true
+  check_slurm || true
+  check_cuda_module || true
+  check_conda_hook || true
+
+  hr
+  printf "Result: %d passed, %d failed\n" "$PASS_COUNT" "$FAIL_COUNT"
+  hr
+
+  if [[ $FAIL_COUNT -gt 0 ]]; then
+    printf "Overall: ❌ One or more checks failed.\n"
+    exit 1
+  else
+    printf "Overall: ✅ All checks passed.\n"
+    exit 0
+  fi
+}
+
+main "$@"
