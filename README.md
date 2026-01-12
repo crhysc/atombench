@@ -41,7 +41,7 @@ vi scripts/absolute_path.sh
 then,
 ```bash
 #!/bin/bash
-export ABS_PATH="path/to/atombench_inverse/repository"
+export ABS_PATH="path/to/this/repository"
 ```
 #### Step 2: Activate the `Snakemake` pipeline to recompute the benchmarks
 As mentioned previously, we use an automated pipeline to compute these benchmarks. After the previous setup steps have been completed, run the pipeline using the following command:
