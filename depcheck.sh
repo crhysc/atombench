@@ -98,4 +98,162 @@ check_cuda_module() {
     elif [[ -f /usr/share/Modules/init/bash ]]; then
       # shellcheck disable=SC1091
       source /usr/share/Modules/init/bash
-    elif [[ -f /usr/share/modules/init/bash ]]; the
+    elif [[ -f /usr/share/modules/init/bash ]]; then
+      # shellcheck disable=SC1091
+      source /usr/share/modules/init/bash
+    fi
+  fi
+
+  if ! type module >/dev/null 2>&1; then
+    fail "Still cannot find the 'module' command after attempted initialization.
+Fix options:
+- Start a login shell (e.g., 'bash -l') so /etc/profile is sourced
+- Ask your cluster docs where modules are initialized
+- Ensure Environment Modules / Lmod is installed on the node"
+    return 1
+  fi
+
+  # Try loading CUDA 11.8
+  local out rc
+  out="$(module load cuda/11.8 2>&1)"; rc=$?
+  if [[ $rc -eq 0 ]]; then
+    ok "module load cuda/11.8 succeeded."
+  else
+    fail "module load cuda/11.8 FAILED (exit code $rc).
+Output:
+$out
+Likely causes:
+- That module name/version doesn't exist on this system
+- You need to run 'module avail cuda' to see valid CUDA modules
+- Your modules cache or MODULEPATH is misconfigured"
+    return 1
+  fi
+
+  # Optional: verify nvcc or nvidia-smi if expected
+  if command -v nvcc >/dev/null 2>&1; then
+    ok "nvcc is now in PATH ($(command -v nvcc))."
+  else
+    warn "nvcc not found in PATH even after loading cuda/11.8.
+This can be normal on some sites (they may only set runtime libs). If you need nvcc, check the module’s contents."
+  fi
+
+  return 0
+}
+
+# ---------- 4) conda hook works + "reloads" base after deactivate ----------
+check_conda_hook() {
+  section "4) Conda hook check (eval \"\$(conda shell.bash hook)\" + base availability)"
+
+  # We run this in a clean subshell so we can safely manipulate state.
+  # We also try to start from a "no conda function" situation if possible.
+  local out rc
+  out="$(
+    bash -lc '
+      set -u
+
+      echo "[INFO] Shell: $0"
+      echo "[INFO] Starting PATH: $PATH"
+
+      # Helper for pretty printing
+      ok()   { echo "✅ $*"; }
+      warn() { echo "⚠️  $*"; }
+      fail() { echo "❌ $*"; exit 1; }
+
+      # 4a) Ensure "conda" executable exists somewhere (hook needs it)
+      if ! command -v conda >/dev/null 2>&1; then
+        fail "conda executable not found in PATH.
+Fix: add Miniconda/Anaconda bin to PATH or source conda.sh, e.g.
+  source <miniconda>/etc/profile.d/conda.sh
+or ensure your ~/.bashrc conda init block runs in login shells."
+      fi
+      ok "Found conda executable: $(command -v conda)"
+
+      # 4b) Try to deactivate (may be harmless if not active)
+      echo "[INFO] Attempting conda deactivate (may be a no-op)..."
+      conda deactivate >/dev/null 2>&1 || true
+
+      # Record whether "conda" is a shell function (ideal after hook) vs just an executable
+      # In bash, `type conda` will show "conda is a function" when initialized.
+      echo "[INFO] Before hook: $(type -t conda 2>/dev/null || echo "<missing>")"
+
+      # 4c) Run the hook
+      echo "[INFO] Running: eval \"\$(conda shell.bash hook)\""
+      HOOK_OUT="$(conda shell.bash hook 2>&1)" || {
+        echo "$HOOK_OUT"
+        fail "conda shell.bash hook failed."
+      }
+      eval "$HOOK_OUT" || fail "eval of conda hook output failed."
+
+      echo "[INFO] After hook: $(type -t conda 2>/dev/null || echo "<missing>")"
+
+      # 4d) Verify that conda is now properly initialized
+      # `conda info --base` should work reliably.
+      BASE_DIR="$(conda info --base 2>/dev/null || true)"
+      if [[ -z "$BASE_DIR" ]]; then
+        fail "conda appears present, but 'conda info --base' did not return a base directory.
+This suggests partial/broken initialization."
+      fi
+      ok "conda base directory: $BASE_DIR"
+
+      # 4e) Confirm we can activate base (this is the closest meaningful 'reload' test)
+      echo "[INFO] Attempting: conda activate base"
+      ACT_OUT="$(conda activate base 2>&1)" || {
+        echo "$ACT_OUT"
+        fail "conda activate base failed."
+      }
+
+      # Confirm env is base
+      if [[ "${CONDA_DEFAULT_ENV:-}" == "base" ]]; then
+        ok "Successfully activated base environment (CONDA_DEFAULT_ENV=base)."
+      else
+        warn "conda activate base did not set CONDA_DEFAULT_ENV=base (got: ${CONDA_DEFAULT_ENV:-<unset>}).
+Activation may still have worked, but environment variables look odd."
+      fi
+
+      # Confirm conda function exists post-init (better UX)
+      if [[ "$(type -t conda)" == "function" ]]; then
+        ok "conda is initialized as a shell function (good)."
+      else
+        warn "conda is not a shell function after hook (type -t conda = $(type -t conda)).
+This can still work, but usually indicates incomplete shell integration."
+      fi
+
+      echo "[INFO] Conda hook test complete."
+    '
+  )"
+  rc=$?
+
+  printf '%s\n' "$out"
+
+  if [[ $rc -eq 0 ]]; then
+    ok "Conda hook + base activation check passed."
+    return 0
+  else
+    fail "Conda hook + base activation check FAILED (see output above)."
+    return 1
+  fi
+}
+
+main() {
+  section "Dependency checker (Linux + Slurm + CUDA module + conda hook)"
+
+  check_linux || true
+  check_slurm || true
+  check_cuda_module || true
+  check_conda_hook || true
+
+  hr
+  printf "Result: %d passed, %d failed\n" "$PASS_COUNT" "$FAIL_COUNT"
+  hr
+
+  if [[ $FAIL_COUNT -gt 0 ]]; then
+    printf "Overall: ❌ One or more checks failed.\n"
+    exit 1
+  else
+    printf "Overall: ✅ All checks passed.\n"
+    exit 0
+  fi
+}
+
+main "$@"
+
