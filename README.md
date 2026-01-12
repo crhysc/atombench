@@ -23,13 +23,11 @@ git clone git@github.com:atomgptlab/atombench_inverse.git
 ```
 NOTE: This repository must be cloned using `ssh` rather than `https` due to constraints from the generative models used in this repository.
 
-
 #### Step 3: Initialize the generative models
 To recompute the benchmarks, the generative models need to be downloaded into the `models/` directory, and we automate this using `git submodules`. In the root directory of this repository, run the following command to download and initialize the generative models used in this study:
 ```bash
 git submodule update --init --recursive
 ```
-
 
 #### Step 4: Create and activate a `conda` environment to host Atombench Python dependencies
 Normally, it is best-practice to avoid installing Python packages to one's base `conda` environment. Make an environment to store required Python deps:
@@ -38,8 +36,14 @@ conda create --name atombench python=3.11 pip -y
 conda activate atombench
 ```
 
+#### Step 5: Add the libmamba solver
+FlowMM's environment setup is very computationally expensive and can potentially cause OOM errors. To avoid this, make the solver less memory-hungry by using libmamba:
+```bash
+conda install -n atombench -c conda-forge conda-libmamba-solver -y
+conda config --set solver libmamba
+```
 
-#### Step 4: Download Python dependencies
+#### Step 6: Download Python dependencies
 This repository recomputes the AtomBench benchmarks using a semi-automated `Snakemake` pipeline. For more information about `Snakemake`, visit their [documentation](https://snakemake.readthedocs.io/en/stable/) site. Moreover, we use `uv` to speed up downstream package installation, and we use `DVC` to automate dataset preprocessing.
 ```bash
 pip install uv snakemake dvc
