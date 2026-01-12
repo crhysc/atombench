@@ -11,7 +11,7 @@ eval "$(conda shell.bash hook)"
 Documentation about activating conda environments using this command can be found [here](https://docs.conda.io/projects/conda/en/latest/dev-guide/deep-dives/activation.html). To verify that using the shell hook works, running `conda deactivate` should remove the `(base)` prefix, and running `eval "$(conda shell.bash hook)"` should re-add the `(base)` prefix:
 ```bash
 (base) [user@hpc-cluster ~]$ conda deactivate
-[user@hpc-cluster atombench]$ eval "$(conda shell.bash hook)"
+[user@hpc-cluster ~]$ eval "$(conda shell.bash hook)"
 (base) [user@hpc-cluster ~]$
 ```
 
