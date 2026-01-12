@@ -48,12 +48,12 @@ pip install uv snakemake dvc
 #### Step 1: Provide the location of this atombench repository
 For this repository to execute its core functionalities, it must know its own location in the computer's filesystem. To accomplish this, locate a file in the `scripts/` directory called `absolute_path.sh`, and set the `ABS_PATH` environment variable equal to the repository's absolute path, e.g.
 ```bash
-vi scripts/absolute_path.sh
+(atombench) [user@hpc-cluster atombench]$ pwd
+/path/to/this/repository
 ```
 then,
 ```bash
-(atombench) [user@hpc-cluster atombench]$ pwd
-/path/to/this/repository
+vi scripts/absolute_path.sh
 ```
 finally,
 ```bash
