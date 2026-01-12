@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# depcheck.sh — verbose dependency checker for Linux + Slurm + CUDA module + conda hook
+# depcheck.sh — verbose dependency checker for Linux + Slurm + CUDA module + conda hook (+ mamba compatibility)
 # Usage: bash depcheck.sh
 #
 # This script is intentionally chatty: it explains *exactly* what failed and how to fix it.
@@ -228,13 +228,166 @@ CONDA_CHECK_SCRIPT
   fi
 }
 
+# ---------- 5) mamba / micromamba present OR conda is compatible with installing mamba ----------
+check_mamba_compat() {
+  section "5) Mamba check (already installed, or conda can install it cleanly)"
+
+  local out rc
+  out="$(
+    bash -lc "$(cat <<'MAMBA_CHECK_SCRIPT'
+set -u
+
+echo "[INFO] Shell: $0"
+echo "[INFO] Starting PATH: $PATH"
+
+ok()   { echo "✅ $*"; }
+warn() { echo "⚠️  $*"; }
+fail() { echo "❌ $*"; exit 1; }
+inconclusive() { echo "⚠️  $*"; exit 2; }
+
+# 5a) If micromamba exists, we are done (doesn't depend on conda).
+if command -v micromamba >/dev/null 2>&1; then
+  ok "Found micromamba: $(command -v micromamba)"
+  micromamba --version 2>/dev/null || true
+  ok "Mamba-family tooling is already available (micromamba)."
+  exit 0
+fi
+
+# 5b) Need conda for mamba (classic) checks.
+if ! command -v conda >/dev/null 2>&1; then
+  inconclusive "conda is not in PATH, so I can't assess mamba-via-conda compatibility.
+Fix: ensure conda is available (see section 4)."
+fi
+ok "Found conda executable: $(command -v conda)"
+
+# Initialize conda shell integration (mirrors section 4, but self-contained).
+HOOK_OUT="$(conda shell.bash hook 2>&1)" || {
+  echo "$HOOK_OUT"
+  inconclusive "conda shell.bash hook failed here, so I can't test mamba installation."
+}
+eval "$HOOK_OUT" || inconclusive "eval of conda hook output failed."
+
+# Activate base (so `mamba` in base would be on PATH).
+conda activate base >/dev/null 2>&1 || inconclusive "Could not activate base; can't reliably check for mamba."
+
+# 5c) If mamba already exists, great.
+if command -v mamba >/dev/null 2>&1; then
+  ok "Found mamba: $(command -v mamba)"
+  mamba --version 2>/dev/null || true
+  ok "Mamba is already installed and available."
+  exit 0
+fi
+
+# 5d) Heuristic compatibility signals (channels, pins, conda version).
+CONDA_VER_RAW="$(conda --version 2>/dev/null || true)"
+echo "[INFO] $CONDA_VER_RAW"
+
+# Extract something like "24.11.0" from "conda 24.11.0"
+CONDA_VER="$(echo "$CONDA_VER_RAW" | awk '{print $2}' | tr -d '\r' || true)"
+if [[ -z "$CONDA_VER" ]]; then
+  warn "Could not parse conda version string. Continuing anyway."
+fi
+
+CHANNELS_OUT="$(conda config --show channels 2>/dev/null || true)"
+echo "[INFO] conda channels:"
+echo "$CHANNELS_OUT"
+
+if echo "$CHANNELS_OUT" | grep -qE '^\s*-\s*conda-forge\s*$'; then
+  ok "conda-forge channel is present (best source for installing mamba)."
+else
+  warn "conda-forge channel is NOT present. Installing mamba often fails or is unavailable without it."
+  echo "Fix (recommended):"
+  echo "  conda config --add channels conda-forge"
+  echo "  conda config --set channel_priority strict"
+fi
+
+PINS_OUT="$(conda config --show pinned_packages 2>/dev/null || true)"
+echo "[INFO] pinned_packages:"
+echo "$PINS_OUT"
+if ! echo "$PINS_OUT" | grep -qE 'pinned_packages:\s*\[\s*\]\s*$'; then
+  warn "You appear to have pinned packages. Pins can cause mamba installs to be UNSAT."
+  echo "Tip: inspect pins via:"
+  echo "  conda config --show pinned_packages"
+fi
+
+# 5e) Try a DRY-RUN solve for installing mamba (no changes made).
+# This may require internet access to fetch repodata.
+# Use timeout if available to avoid hanging forever.
+DRYRUN_CMD=(conda create -n _mamba_probe -c conda-forge mamba --dry-run -y)
+
+echo "[INFO] Attempting DRY-RUN solve:"
+echo "       ${DRYRUN_CMD[*]}"
+
+if command -v timeout >/dev/null 2>&1; then
+  # 45s is usually plenty for a simple solve; adjust by setting DEPCHECK_MAMBA_TIMEOUT.
+  T="${DEPCHECK_MAMBA_TIMEOUT:-45}"
+  echo "[INFO] Using timeout: ${T}s"
+  DRYRUN_OUT="$(timeout "${T}"s "${DRYRUN_CMD[@]}" 2>&1)"; RC=$?
+else
+  DRYRUN_OUT="$("${DRYRUN_CMD[@]}" 2>&1)"; RC=$?
+fi
+
+echo "$DRYRUN_OUT"
+
+# timeout returns 124 when it kills the command
+if [[ ${RC:-0} -eq 124 ]]; then
+  inconclusive "Dry-run timed out. This could be slow metadata fetching or a blocked network."
+fi
+
+if [[ ${RC:-0} -eq 0 ]]; then
+  ok "Dry-run solve succeeded: this conda installation is compatible with installing mamba."
+  echo "Install command (real):"
+  echo "  conda install -n base -c conda-forge mamba -y"
+  exit 0
+fi
+
+# Heuristic: distinguish network issues vs true UNSAT.
+if echo "$DRYRUN_OUT" | grep -qiE 'CondaHTTPError|Connection|Failed to establish|Temporary failure|Name or service not known|SSLError|Read timed out|ProxyError|Network is unreachable'; then
+  inconclusive "Dry-run failed due to network / channel access issues.
+Fix: ensure the node can reach conda channels (or configure your proxy / mirror), or try from a different node."
+fi
+
+if echo "$DRYRUN_OUT" | grep -qiE 'UnsatisfiableError|PackagesNotFoundError'; then
+  fail "Dry-run indicates mamba install is NOT currently solvable (UNSAT / package not found).
+Common fixes:
+- Add conda-forge + strict priority:
+    conda config --add channels conda-forge
+    conda config --set channel_priority strict
+- Avoid installing into base; try a fresh env:
+    conda create -n mamba_env -c conda-forge mamba
+- If base is heavily pinned/brittle, consider Miniforge/Mambaforge or use micromamba."
+fi
+
+# Otherwise: unknown failure mode, but it's still a failure for compatibility.
+fail "Dry-run failed for an unknown reason (exit code ${RC:-<unknown>}).
+Scroll output above for the exact error."
+MAMBA_CHECK_SCRIPT
+)"
+  )"
+  rc=$?
+
+  printf '%s\n' "$out"
+
+  if [[ $rc -eq 0 ]]; then
+    ok "Mamba compatibility check passed."
+    return 0
+  elif [[ $rc -eq 2 ]]; then
+    warn "Mamba compatibility check was inconclusive (likely network/timeout)."
+    return 0
+  else
+    fail "Mamba compatibility check FAILED (see output above)."
+    return 1
+  fi
+}
+
 main() {
-  section "Dependency checker (Linux + Slurm + CUDA module + conda hook)"
+  section "Dependency checker (Linux + Slurm + CUDA module + conda hook + mamba)"
 
   check_linux || true
   check_slurm || true
   check_cuda_module || true
   check_conda_hook || true
+  check_mamba_compat || true
 
   hr
   printf "Result: %d passed, %d failed\n" "$PASS_COUNT" "$FAIL_COUNT"
