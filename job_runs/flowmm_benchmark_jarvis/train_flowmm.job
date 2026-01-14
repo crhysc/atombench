@@ -1,12 +1,9 @@
 #!/bin/bash
-
-#SBATCH --job-name=flow_tc       
-#SBATCH --nodes=1                         
+#SBATCH --job-name=flow_tc
 #SBATCH --gres=gpu:1
-#SBATCH --ntasks-per-node=4                # Run 4 tasks (processes) on the node
-#SBATCH --cpus-per-task=2                  # 2 CPU cores per task (for multi‐threaded code)
-#SBATCH --time=24:00:00                    # Max walltime (HH:MM:SS)
-#SBATCH --mem=64G                          # Total RAM for the job (8 GB)
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=8
+
 
 # setup
 eval "$(conda shell.bash hook)"
