@@ -1,5 +1,6 @@
 import os
 import json
+import argparse
 from pathlib import Path
 from jarvis.db.jsonutils import loadjson
 from jarvis.core.atoms import Atoms
@@ -18,6 +19,12 @@ import pandas as pd
 from jarvis.io.vasp.inputs import Poscar
 from functools import lru_cache
 from pymatgen.core import Structure
+import amd
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--tau", type=float, default=0.5)
+parser.add_argument("--amd_k", type=int, default=100)
+args = parser.parse_args()
 
 # ── Matplotlib defaults ────────────────────────────────────────────────────
 mpl.rcParams['font.family'] = 'serif'
@@ -85,6 +92,35 @@ def compute_atomgen_rmse(df: pd.DataFrame) -> float:
     if len(rms_vals) == 0:
         return float("nan")
     return round(float(np.mean(rms_vals)), 4)
+
+@lru_cache(maxsize=4096)
+def amd_vector_from_poscar_text(poscar_text: str, k: int):
+    s = reduced_structure_from_poscar_text(poscar_text)
+    motif = np.asarray(s.cart_coords, dtype=np.float64)
+    cell = np.asarray(s.lattice.matrix, dtype=np.float64)
+    v = amd.AMD((motif, cell), int(k))
+    return tuple(np.asarray(v, dtype=np.float64).tolist())
+
+def compute_ccrmse_amd(df: pd.DataFrame, k: int, tau: float):
+    if tau <= 0:
+        return float("nan"), 0
+    s2 = 0.0
+    n = 0
+    for _, row in df.iterrows():
+        try:
+            v_t = np.asarray(amd_vector_from_poscar_text(str(row["target"]), int(k)), dtype=np.float64)
+            v_p = np.asarray(amd_vector_from_poscar_text(str(row["prediction"]), int(k)), dtype=np.float64)
+            d = float(np.max(np.abs(v_p - v_t)))
+            if not np.isfinite(d) or d < 0:
+                continue
+            dc = d if d <= tau else tau
+            s2 += dc * dc
+            n += 1
+        except Exception:
+            continue
+    if n == 0:
+        return float("nan"), 0
+    return float(np.sqrt(s2 / float(n))), int(n)
 
 # ── Load data & extract Niggli-reduced params ─────────────────────────────
 df = pd.read_csv("AI-AtomGen-prop-dft_3d-test-rmse.csv")
@@ -194,7 +230,7 @@ ax_lat.set_xticklabels((pos + 1).tolist(), rotation=0, ha="center")
 ax_lat.set_xlabel("Crystal system number")
 ax_lat.set_title("(e)")
 
-# ── (f) Molecular weight ────────────────────────────────────────────────
+# ── (f) Molecular weight ─────────────────────────────────────────────────
 overlay_hist(plt.subplot(the_grid[1, 2]),
              x_Z, y_Z,
              bins=np.arange(15, 2000, 100),
@@ -235,6 +271,7 @@ kld_beta  = float(kl_divergence(x_beta,  y_beta))
 kld_gamma = float(kl_divergence(x_gamma, y_gamma))
 
 rmse_atomgen = compute_atomgen_rmse(df)
+ccrmse_amd, n_ccrmse = compute_ccrmse_amd(df, k=int(args.amd_k), tau=float(args.tau))
 
 metrics = {
     "benchmark_name": Path.cwd().name,
@@ -258,6 +295,12 @@ metrics = {
     },
     "RMSE": {
         "AtomGen": rmse_atomgen
+    },
+    "ccRMSE": {
+        "value": ccrmse_amd,
+        "tau": float(args.tau),
+        "amd_k": int(args.amd_k),
+        "n_eval": int(n_ccrmse)
     }
 }
 
@@ -283,4 +326,3 @@ else:
 with open("metrics.json", "w") as f:
     json.dump(metrics, f, indent=2)
 print("✓ wrote metrics.json")
-
