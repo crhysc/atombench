@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  smoke-test:
+  submodules-smoke-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout with submodules
@@ -34,3 +34,56 @@ jobs:
               exit 1
             fi
           done
+          
+  miniconda_and_snakemake:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    if: github.event_name=='pull_request'
+    strategy:
+      matrix:
+        os: ["ubuntu-latest"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-activate-base: false
+          use-mamba: true
+
+      - name: Create env (once)
+        shell: bash -l {0}
+        run: mamba create -y -n atombench python=3.11 pip
+
+      - name: Re-run setup-miniconda activation
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: atombench
+          auto-activate-base: false
+          use-mamba: true
+
+      - name: Install dev tools and dependencies
+        shell: bash -l {0}
+        run: |
+          pip install uv dvc snakemake
+          conda install -n atombench -c conda-forge mamba -y
+
+      - name: Linting
+        uses: snakemake/snakemake-github-action@v2
+        with:
+          directory: ".test"
+          snakefile: "Snakefile"
+          args: "--lint"
+      
+      - name: conda env check
+        uses: snakemake/snakemake-github-action@v2
+        with:
+          directory: ".test"
+          snakefile: "Snakefile"
+          args: "--cores all --conda-cleanup-pkgs cache"
+          stagein: "" # additional preliminary commands to run (can be multiline)
+          show-disk-usage-on-error: true
+      
+ 
