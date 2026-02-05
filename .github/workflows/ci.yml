@@ -21,7 +21,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Smoke‑check submodules
+      - name: Smoke-check submodules
         run: |
           set -e
           git submodule update --init --recursive
@@ -97,7 +97,7 @@ jobs:
         shell: bash -l {0}
         run: |
           cd .test
-          snakemake --cores 3 --use-conda --conda-frontend mamba --conda-cleanup-pkgs cache envs_ready
+          snakemake --cores all --use-conda --conda-frontend mamba --conda-cleanup-pkgs cache --printshellcmds --show-failed-logs envs_ready
 
       - name: Assert my_atomgpt pip installs
         shell: bash -l {0}
@@ -109,19 +109,52 @@ jobs:
           conda run -n my_atomgpt python -m pip show uv >/dev/null
           conda run -n my_atomgpt python -m pip check
 
-          # "Editable install worked" smoke test (best-effort import)
+          # Assert editable install points at the populated submodule path (no module-name guessing)
           conda run -n my_atomgpt python - <<'PY'
-          import importlib
-          import sys
+          import os, sys, site, pathlib
 
-          # If your top-level module name differs, change this import.
-          mod = "atomgpt"
-          try:
-            m = importlib.import_module(mod)
-          except Exception as e:
-            raise SystemExit(f"Failed to import {mod} in my_atomgpt env: {e}")
-          print(f"{mod} imported from:", getattr(m, "__file__", "<no __file__>"))
-          print("Python:", sys.version)
+          expected = os.path.realpath(os.path.join(os.environ.get("GITHUB_WORKSPACE", os.getcwd()), "models", "atomgpt"))
+          expected_slash = expected.replace(os.sep, "/")
+
+          def hit(text: str) -> bool:
+            return (expected in text) or (expected_slash in text)
+
+          ok = False
+
+          # 1) quick sys.path check
+          for p in sys.path:
+            if not p:
+              continue
+            rp = os.path.realpath(p)
+            if rp == expected or rp.startswith(expected + os.sep):
+              ok = True
+              print("Found editable path on sys.path:", rp)
+              break
+
+          # 2) fallback: scan site-packages for .pth or direct_url.json references
+          if not ok:
+            candidates = []
+            for sp in list(site.getsitepackages()) + [site.getusersitepackages()]:
+              if not sp:
+                continue
+              base = pathlib.Path(sp)
+              if not base.exists():
+                continue
+              candidates.extend(list(base.glob("*.pth")))
+              candidates.extend(list(base.glob("**/direct_url.json")))
+
+            for f in candidates:
+              try:
+                txt = f.read_text(errors="ignore")
+              except Exception:
+                continue
+              if hit(txt):
+                ok = True
+                print("Found editable reference in:", str(f))
+                break
+
+          assert ok, f"Did not find editable install reference to {expected} (sys.path/.pth/direct_url.json)"
+          print("my_atomgpt editable install reference OK")
           PY
 
       - name: Assert cdvae pip installs (versions)
@@ -133,45 +166,81 @@ jobs:
 
           conda run -n cdvae python - <<'PY'
           from importlib.metadata import version
-          from packaging.version import Version
+          import re
 
-          def v(pkg: str) -> Version:
-            return Version(version(pkg))
+          def parse_ver(s: str):
+            core = re.split(r"[+ -]", s.strip())[0]
+            nums = []
+            for p in core.split("."):
+              nums.append(int(p) if p.isdigit() else 0)
+            while len(nums) < 3:
+              nums.append(0)
+            return tuple(nums[:3])
 
-          # exact pins
-          assert str(v("monty")) == "2022.9.9", f"monty={v('monty')} (expected 2022.9.9)"
-          assert str(v("torch-geometric")) == "1.7.0", f"torch-geometric={v('torch-geometric')} (expected 1.7.0)"
+          def v(pkg: str):
+            return parse_ver(version(pkg))
 
-          # presence checks
+          assert version("monty") == "2022.9.9", f"monty={version('monty')} (expected 2022.9.9)"
+          assert version("torch-geometric") == "1.7.0", f"torch-geometric={version('torch-geometric')} (expected 1.7.0)"
+
           for pkg in ["pandas", "jarvis-tools"]:
-            _ = v(pkg)
+            _ = version(pkg)
 
-          # range check (your script: >=2022.0.8,<2023)
           pv = v("pymatgen")
-          assert pv >= Version("2022.0.8") and pv < Version("2023.0.0"), f"pymatgen={pv} (expected >=2022.0.8,<2023)"
+          assert pv >= (2022, 0, 8) and pv < (2023, 0, 0), f"pymatgen={version('pymatgen')} (expected >=2022.0.8,<2023)"
 
-          # torchmetrics constraint was installed via conda, but we can still validate its version
           tv = v("torchmetrics")
-          assert tv < Version("0.8.0"), f"torchmetrics={tv} (expected <0.8.0)"
+          assert tv < (0, 8, 0), f"torchmetrics={version('torchmetrics')} (expected <0.8.0)"
 
-          print("cdvae env OK:",
-                "monty", v("monty"),
-                "| torch-geometric", v("torch-geometric"),
-                "| pymatgen", pv,
-                "| torchmetrics", tv)
+          print("cdvae env OK")
           PY
 
           conda run -n cdvae python -m pip check
 
-          # Editable install smoke test (change module name if needed)
+          # Assert editable install points at the populated submodule path (no module-name guessing)
           conda run -n cdvae python - <<'PY'
-          import importlib
-          mod = "cdvae"
-          try:
-            m = importlib.import_module(mod)
-          except Exception as e:
-            raise SystemExit(f"Failed to import {mod} in cdvae env: {e}")
-          print(f"{mod} imported from:", getattr(m, "__file__", "<no __file__>"))
+          import os, sys, site, pathlib
+
+          expected = os.path.realpath(os.path.join(os.environ.get("GITHUB_WORKSPACE", os.getcwd()), "models", "cdvae"))
+          expected_slash = expected.replace(os.sep, "/")
+
+          def hit(text: str) -> bool:
+            return (expected in text) or (expected_slash in text)
+
+          ok = False
+
+          for p in sys.path:
+            if not p:
+              continue
+            rp = os.path.realpath(p)
+            if rp == expected or rp.startswith(expected + os.sep):
+              ok = True
+              print("Found editable path on sys.path:", rp)
+              break
+
+          if not ok:
+            candidates = []
+            for sp in list(site.getsitepackages()) + [site.getusersitepackages()]:
+              if not sp:
+                continue
+              base = pathlib.Path(sp)
+              if not base.exists():
+                continue
+              candidates.extend(list(base.glob("*.pth")))
+              candidates.extend(list(base.glob("**/direct_url.json")))
+
+            for f in candidates:
+              try:
+                txt = f.read_text(errors="ignore")
+              except Exception:
+                continue
+              if hit(txt):
+                ok = True
+                print("Found editable reference in:", str(f))
+                break
+
+          assert ok, f"Did not find editable install reference to {expected} (sys.path/.pth/direct_url.json)"
+          print("cdvae editable install reference OK")
           PY
 
       - name: Assert flowmm pip installs (versions)
@@ -183,38 +252,73 @@ jobs:
 
           conda run -n flowmm python - <<'PY'
           from importlib.metadata import version
-          from packaging.version import Version
+          import re
 
-          def v(pkg: str) -> Version:
-            return Version(version(pkg))
+          def parse_ver(s: str):
+            core = re.split(r"[+ -]", s.strip())[0]
+            nums = []
+            for p in core.split("."):
+              nums.append(int(p) if p.isdigit() else 0)
+            while len(nums) < 3:
+              nums.append(0)
+            return tuple(nums[:3])
 
-          # presence
+          def v(pkg: str):
+            return parse_ver(version(pkg))
+
           for pkg in ["uv", "pandas", "numpy", "tqdm", "matminer"]:
-            _ = v(pkg)
+            _ = version(pkg)
 
-          # minimum versions
-          jv = v("jarvis-tools")
-          assert jv >= Version("2024.5"), f"jarvis-tools={jv} (expected >=2024.5)"
+          assert v("jarvis-tools") >= (2024, 5, 0), f"jarvis-tools={version('jarvis-tools')} (expected >=2024.5)"
+          assert v("pymatgen") >= (2024, 1, 0), f"pymatgen={version('pymatgen')} (expected >=2024.1)"
 
-          pv = v("pymatgen")
-          assert pv >= Version("2024.1"), f"pymatgen={pv} (expected >=2024.1)"
-
-          print("flowmm env OK:",
-                "uv", v("uv"),
-                "| jarvis-tools", jv,
-                "| pymatgen", pv)
+          print("flowmm env OK")
           PY
 
           conda run -n flowmm python -m pip check
 
-          # Editable install smoke test (change module name if needed)
+          # Assert editable install points at the populated submodule path (no module-name guessing)
           conda run -n flowmm python - <<'PY'
-          import importlib
-          mod = "flowmm"
-          try:
-            m = importlib.import_module(mod)
-          except Exception as e:
-            raise SystemExit(f"Failed to import {mod} in flowmm env: {e}")
-          print(f"{mod} imported from:", getattr(m, "__file__", "<no __file__>"))
-          PY
+          import os, sys, site, pathlib
 
+          expected = os.path.realpath(os.path.join(os.environ.get("GITHUB_WORKSPACE", os.getcwd()), "models", "flowmm"))
+          expected_slash = expected.replace(os.sep, "/")
+
+          def hit(text: str) -> bool:
+            return (expected in text) or (expected_slash in text)
+
+          ok = False
+
+          for p in sys.path:
+            if not p:
+              continue
+            rp = os.path.realpath(p)
+            if rp == expected or rp.startswith(expected + os.sep):
+              ok = True
+              print("Found editable path on sys.path:", rp)
+              break
+
+          if not ok:
+            candidates = []
+            for sp in list(site.getsitepackages()) + [site.getusersitepackages()]:
+              if not sp:
+                continue
+              base = pathlib.Path(sp)
+              if not base.exists():
+                continue
+              candidates.extend(list(base.glob("*.pth")))
+              candidates.extend(list(base.glob("**/direct_url.json")))
+
+            for f in candidates:
+              try:
+                txt = f.read_text(errors="ignore")
+              except Exception:
+                continue
+              if hit(txt):
+                ok = True
+                print("Found editable reference in:", str(f))
+                break
+
+          assert ok, f"Did not find editable install reference to {expected} (sys.path/.pth/direct_url.json)"
+          print("flowmm editable install reference OK")
+          PY
