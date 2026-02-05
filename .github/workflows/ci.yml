@@ -72,7 +72,7 @@ jobs:
 
       - name: Create env (once)
         shell: bash -l {0}
-        run: mamba create -y -n atombench python=3.11 pip
+        run: conda create -y -n atombench python=3.11 pip
 
       - name: Re-run setup-miniconda activation
         uses: conda-incubator/setup-miniconda@v2
