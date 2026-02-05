@@ -6,9 +6,15 @@ on:
   pull_request:
     branches: [ main ]
 
-jobs:
-  submodules-smoke-test:
-    runs-on: ubuntu-latest
+jobs:    
+  submodules_miniconda_and_snakemake:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    if: github.event_name=='pull_request'
+    strategy:
+      matrix:
+        os: ["ubuntu-latest"]
+
     steps:
       - name: Checkout with submodules
         uses: actions/checkout@v4
@@ -34,18 +40,28 @@ jobs:
               exit 1
             fi
           done
-          
-  miniconda_and_snakemake:
-    name: Test on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    if: github.event_name=='pull_request'
-    strategy:
-      matrix:
-        os: ["ubuntu-latest"]
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Assert submodules populated
+        shell: bash -l {0}
+        run: |
+          set -euo pipefail
+
+          git submodule update --init --recursive
+
+          # Submodules should be "clean" (no + or - prefix in status)
+          if git submodule status --recursive | grep -q '^[+-]'; then
+            echo "Submodule status is not clean:" >&2
+            git submodule status --recursive >&2
+            exit 1
+          fi
+
+          # Ensure each submodule dir exists, is non-empty, and is a valid git work tree
+          for d in models/atomgpt models/cdvae models/flowmm; do
+            [[ -d "$d" ]] || { echo "Missing submodule directory: $d" >&2; exit 1; }
+            [[ -n "$(ls -A "$d")" ]] || { echo "Empty submodule directory: $d" >&2; exit 1; }
+            git -C "$d" rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "Not a git worktree: $d" >&2; exit 1; }
+            git -C "$d" rev-parse HEAD >/dev/null 2>&1 || { echo "Cannot resolve HEAD in: $d" >&2; exit 1; }
+          done
 
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v2
@@ -77,13 +93,128 @@ jobs:
           snakefile: "Snakefile"
           args: "--lint"
       
-      - name: conda env check
-        uses: snakemake/snakemake-github-action@v2
-        with:
-          directory: ".test"
-          snakefile: "Snakefile"
-          args: "--cores all --conda-cleanup-pkgs cache"
-          stagein: "" # additional preliminary commands to run (can be multiline)
-          show-disk-usage-on-error: true
-      
- 
+      - name: Snakemake conda env check
+        shell: bash -l {0}
+        run: |
+          cd .test
+          snakemake --cores 3 --use-conda --conda-frontend mamba --conda-cleanup-pkgs cache envs_ready
+
+      - name: Assert my_atomgpt pip installs
+        shell: bash -l {0}
+        run: |
+          set -euo pipefail
+
+          conda env list | awk 'NF && $1 !~ /^#/ {print $1}' | grep -qx my_atomgpt
+
+          conda run -n my_atomgpt python -m pip show uv >/dev/null
+          conda run -n my_atomgpt python -m pip check
+
+          # "Editable install worked" smoke test (best-effort import)
+          conda run -n my_atomgpt python - <<'PY'
+          import importlib
+          import sys
+
+          # If your top-level module name differs, change this import.
+          mod = "atomgpt"
+          try:
+            m = importlib.import_module(mod)
+          except Exception as e:
+            raise SystemExit(f"Failed to import {mod} in my_atomgpt env: {e}")
+          print(f"{mod} imported from:", getattr(m, "__file__", "<no __file__>"))
+          print("Python:", sys.version)
+          PY
+
+      - name: Assert cdvae pip installs (versions)
+        shell: bash -l {0}
+        run: |
+          set -euo pipefail
+
+          conda env list | awk 'NF && $1 !~ /^#/ {print $1}' | grep -qx cdvae
+
+          conda run -n cdvae python - <<'PY'
+          from importlib.metadata import version
+          from packaging.version import Version
+
+          def v(pkg: str) -> Version:
+            return Version(version(pkg))
+
+          # exact pins
+          assert str(v("monty")) == "2022.9.9", f"monty={v('monty')} (expected 2022.9.9)"
+          assert str(v("torch-geometric")) == "1.7.0", f"torch-geometric={v('torch-geometric')} (expected 1.7.0)"
+
+          # presence checks
+          for pkg in ["pandas", "jarvis-tools"]:
+            _ = v(pkg)
+
+          # range check (your script: >=2022.0.8,<2023)
+          pv = v("pymatgen")
+          assert pv >= Version("2022.0.8") and pv < Version("2023.0.0"), f"pymatgen={pv} (expected >=2022.0.8,<2023)"
+
+          # torchmetrics constraint was installed via conda, but we can still validate its version
+          tv = v("torchmetrics")
+          assert tv < Version("0.8.0"), f"torchmetrics={tv} (expected <0.8.0)"
+
+          print("cdvae env OK:",
+                "monty", v("monty"),
+                "| torch-geometric", v("torch-geometric"),
+                "| pymatgen", pv,
+                "| torchmetrics", tv)
+          PY
+
+          conda run -n cdvae python -m pip check
+
+          # Editable install smoke test (change module name if needed)
+          conda run -n cdvae python - <<'PY'
+          import importlib
+          mod = "cdvae"
+          try:
+            m = importlib.import_module(mod)
+          except Exception as e:
+            raise SystemExit(f"Failed to import {mod} in cdvae env: {e}")
+          print(f"{mod} imported from:", getattr(m, "__file__", "<no __file__>"))
+          PY
+
+      - name: Assert flowmm pip installs (versions)
+        shell: bash -l {0}
+        run: |
+          set -euo pipefail
+
+          conda env list | awk 'NF && $1 !~ /^#/ {print $1}' | grep -qx flowmm
+
+          conda run -n flowmm python - <<'PY'
+          from importlib.metadata import version
+          from packaging.version import Version
+
+          def v(pkg: str) -> Version:
+            return Version(version(pkg))
+
+          # presence
+          for pkg in ["uv", "pandas", "numpy", "tqdm", "matminer"]:
+            _ = v(pkg)
+
+          # minimum versions
+          jv = v("jarvis-tools")
+          assert jv >= Version("2024.5"), f"jarvis-tools={jv} (expected >=2024.5)"
+
+          pv = v("pymatgen")
+          assert pv >= Version("2024.1"), f"pymatgen={pv} (expected >=2024.1)"
+
+          print("flowmm env OK:",
+                "uv", v("uv"),
+                "| jarvis-tools", jv,
+                "| pymatgen", pv)
+          PY
+
+          conda run -n flowmm python -m pip check
+
+          # Editable install smoke test (change module name if needed)
+          conda run -n flowmm python - <<'PY'
+          import importlib
+          mod = "flowmm"
+          try:
+            m = importlib.import_module(mod)
+          except Exception as e:
+            raise SystemExit(f"Failed to import {mod} in flowmm env: {e}")
+          print(f"{mod} imported from:", getattr(m, "__file__", "<no __file__>"))
+          PY
+
