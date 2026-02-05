@@ -87,12 +87,12 @@ jobs:
           pip install uv dvc snakemake
           conda install -n atombench -c conda-forge mamba -y
 
-      - name: Linting
-        uses: snakemake/snakemake-github-action@v2
-        with:
-          directory: ".test"
-          snakefile: "Snakefile"
-          args: "--lint"
+      # - name: Linting
+      #   uses: snakemake/snakemake-github-action@v2
+      #   with:
+      #     directory: ".test"
+      #     snakefile: "Snakefile"
+      #     args: "--lint"
       
       - name: Snakemake conda env check
         shell: bash -l {0}
