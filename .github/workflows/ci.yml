@@ -97,6 +97,7 @@ jobs:
       - name: Snakemake conda env check
         shell: bash -l {0}
         run: |
+          mkdir -p .test
           cd .test
           snakemake --cores all --use-conda --conda-frontend mamba --conda-cleanup-pkgs cache --printshellcmds --show-failed-logs envs_ready
 
