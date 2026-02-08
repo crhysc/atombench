@@ -11,4 +11,10 @@ pip install "monty==2022.9.9"
 conda install -c conda-forge "pymatgen>=2022.0.8,<2023" --yes
 pip install pandas jarvis-tools
 pip install --upgrade torch_geometric==1.7.0
+
+
+echo "TEST TEST TEST"
+conda run -n cdvae python -m pip uninstall -y aflow || true
+conda run -n cdvae python -m pip check
+
 pip install -e .
