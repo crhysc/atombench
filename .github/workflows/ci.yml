@@ -19,8 +19,8 @@ jobs:
         env: ["atombench", "my_atomgpt", "cdvae", "flowmm"]
 
     env:
-      CONDA_PKGS_DIRS: ${{ runner.temp }}/conda_pkgs
-      PIP_CACHE_DIR: ${{ runner.temp }}/pip_cache
+      CONDA_PKGS_DIRS: /tmp/conda_pkgs
+      PIP_CACHE_DIR: /tmp/pip_cache
 
     steps:
       - name: Checkout with submodules
