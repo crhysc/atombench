@@ -7,14 +7,20 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-jobs:    
-  submodules_miniconda_and_snakemake:
-    name: Test on ${{ matrix.os }}
+jobs:
+  conda_env_matrix:
+    name: Build ${{ matrix.env }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     strategy:
+      fail-fast: false
       matrix:
         os: ["ubuntu-latest"]
+        env: ["atombench", "my_atomgpt", "cdvae", "flowmm"]
+
+    env:
+      CONDA_PKGS_DIRS: ${{ runner.temp }}/conda_pkgs
+      PIP_CACHE_DIR: ${{ runner.temp }}/pip_cache
 
     steps:
       - name: Checkout with submodules
@@ -64,42 +70,61 @@ jobs:
             git -C "$d" rev-parse HEAD >/dev/null 2>&1 || { echo "Cannot resolve HEAD in: $d" >&2; exit 1; }
           done
 
+      - name: Free disk space (runner)
+        run: |
+          set -e
+          df -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android || true
+          df -h
+
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v2
         with:
           auto-activate-base: false
           use-mamba: true
 
-      - name: Create env (once)
-        shell: bash -l {0}
-        run: conda create -y -n atombench python=3.11 pip
-
-      - name: Re-run setup-miniconda activation
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          activate-environment: atombench
-          auto-activate-base: false
-          use-mamba: true
-
-      - name: Install dev tools and dependencies
+      # --- atombench env (standalone) ---
+      - name: Create atombench env
+        if: matrix.env == 'atombench'
         shell: bash -l {0}
         run: |
-          pip install uv dvc snakemake
+          conda create -y -n atombench python=3.11 pip
+          conda run -n atombench python -m pip install uv dvc snakemake
           conda install -n atombench -c conda-forge mamba -y
 
-      # - name: Linting
-      #   uses: snakemake/snakemake-github-action@v2
-      #   with:
-      #     directory: ".test"
-      #     snakefile: "Snakefile"
-      #     args: "--lint"
-      
-      - name: Snakemake conda env check
+      # --- model env jobs (NO atombench activation) ---
+      - name: Install bootstrap tools in base (no atombench activation)
+        if: matrix.env != 'atombench'
         shell: bash -l {0}
         run: |
-          snakemake --cores all --use-conda --conda-frontend mamba --conda-cleanup-pkgs cache --printshellcmds --show-failed-logs envs_ready
+          conda run -n base python -m pip install uv dvc snakemake
+          conda install -n base -c conda-forge mamba -y
+
+      - name: Create model env via Snakemake target
+        if: matrix.env != 'atombench'
+        shell: bash -l {0}
+        run: |
+          set -euo pipefail
+
+          target=""
+          case "${{ matrix.env }}" in
+            my_atomgpt) target="atomgpt_env.created" ;;
+            cdvae)      target="cdvae_env.created" ;;
+            flowmm)     target="flowmm_env.created" ;;
+            *)          echo "Unknown matrix.env=${{ matrix.env }}" >&2; exit 1 ;;
+          esac
+
+          conda run -n base snakemake \
+            --cores 1 \
+            --use-conda \
+            --conda-frontend mamba \
+            --conda-cleanup-pkgs cache \
+            --printshellcmds \
+            --show-failed-logs \
+            "${target}"
 
       - name: Assert my_atomgpt pip installs
+        if: matrix.env == 'my_atomgpt'
         shell: bash -l {0}
         run: |
           set -euo pipefail
@@ -158,6 +183,7 @@ jobs:
           PY
 
       - name: Assert cdvae pip installs (versions)
+        if: matrix.env == 'cdvae'
         shell: bash -l {0}
         run: |
           set -euo pipefail
@@ -244,6 +270,7 @@ jobs:
           PY
 
       - name: Assert flowmm pip installs (versions)
+        if: matrix.env == 'flowmm'
         shell: bash -l {0}
         run: |
           set -euo pipefail
