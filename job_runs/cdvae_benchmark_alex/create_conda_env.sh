@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 cd models/cdvae
 
 conda env create -f env.yml -y
