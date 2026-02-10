@@ -74,24 +74,69 @@ def find_benchmarks_dir(start: Path) -> Path | None:
     return None
 
 # ── RMSE (StructureMatcher) helper mirroring your snippet ────────────────
-def compute_atomgen_rmse(df: pd.DataFrame) -> float:
-    matcher = StructureMatcher(stol=0.5, angle_tol=10, ltol=0.3)
-    rms_vals = []
+# PATCH: apply Niggli reduction before matching, compute mean normalized
+#        Cartesian RMS displacement over matched structures, and expose
+#        match_rate + stol as metrics.
+def compute_atomgen_rmse(df: pd.DataFrame) -> dict:
+    STOL = 0.5
+    matcher = StructureMatcher(stol=STOL, angle_tol=10, ltol=0.3)
+
+    norm_rms_vals = []
+    rms_vals_ang = []
+    n_total = 0
+    n_matched = 0
+
     for _, mm in df.iterrows():
         try:
-            atoms_target = Poscar.from_string((mm["target"].replace("\\n", "\n"))).atoms
-            atoms_pred   = Poscar.from_string((mm["prediction"].replace("\\n", "\n"))).atoms
-            rms_dist = matcher.get_rms_dist(
-                atoms_pred.pymatgen_converter(),
-                atoms_target.pymatgen_converter(),
-            )
+            # Niggli-reduce both target and prediction BEFORE matching / RMS
+            s_target = reduced_structure_from_poscar_text(str(mm["target"]))
+            s_pred   = reduced_structure_from_poscar_text(str(mm["prediction"]))
+            n_total += 1
+
+            rms_dist = matcher.get_rms_dist(s_pred, s_target)
             if rms_dist is not None:
-                rms_vals.append(float(rms_dist[0]))  # first element is RMS
+                rms_ang = float(rms_dist[0])  # first element is RMS (Å)
+                # normalize by a structural length scale (Å): V^{1/3}
+                vol = float(s_target.lattice.volume)
+                if np.isfinite(vol) and vol > 0:
+                    scale = float(np.cbrt(vol))
+                    if np.isfinite(scale) and scale > 0:
+                        norm_rms_vals.append(rms_ang / scale)
+                        rms_vals_ang.append(rms_ang)
+                        n_matched += 1
         except Exception:
             continue
-    if len(rms_vals) == 0:
-        return float("nan")
-    return round(float(np.mean(rms_vals)), 4)
+
+    if n_total == 0:
+        return {
+            "mean_normalized_cartesian_rms": float("nan"),
+            "mean_cartesian_rms_angstrom": float("nan"),
+            "match_rate": float("nan"),
+            "stol": float(STOL),
+            "n_matched": int(0),
+            "n_total": int(0),
+        }
+
+    match_rate = float(n_matched) / float(n_total) if n_total > 0 else float("nan")
+
+    if n_matched == 0:
+        return {
+            "mean_normalized_cartesian_rms": float("nan"),
+            "mean_cartesian_rms_angstrom": float("nan"),
+            "match_rate": float(match_rate),
+            "stol": float(STOL),
+            "n_matched": int(0),
+            "n_total": int(n_total),
+        }
+
+    return {
+        "mean_normalized_cartesian_rms": round(float(np.mean(norm_rms_vals)), 6),
+        "mean_cartesian_rms_angstrom": round(float(np.mean(rms_vals_ang)), 6),
+        "match_rate": round(float(match_rate), 6),
+        "stol": float(STOL),
+        "n_matched": int(n_matched),
+        "n_total": int(n_total),
+    }
 
 @lru_cache(maxsize=4096)
 def amd_vector_from_poscar_text(poscar_text: str, k: int):
