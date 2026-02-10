@@ -22,6 +22,11 @@ files are always written. CSV formats match the original reference scripts.
 Special-case hygiene for JARVIS Supercon-3D (dataset dft_3d):
   - Remove the duplicate entry 'JVASP-19919' BEFORE shuffling/splitting so it
     cannot land in train/val/test (it is structurally identical to another entry).
+  - Remove known leakage-prone *test* IDs (structure duplicates of train entries)
+    AFTER shuffling/splitting, so the split is minimally perturbed while the
+    leaked test exemplars are excluded across *all* model outputs:
+      * JVASP-20425
+      * JVASP-16080
 
 Abstract-factory layout:
 
@@ -103,6 +108,64 @@ def hash10(values: List[str]) -> str:
         h.update(v.encode())
         h.update(b",")
     return h.hexdigest()[:10]
+
+
+################################################################################
+# Known leakage hygiene (Supercon-3D)
+################################################################################
+
+# These IDs were observed in the test split to be STRUCTURE-hash duplicates of train entries.
+# Keep the train exemplars; exclude these *test* exemplars.
+SUPERCON3D_DROP_FROM_TEST_IDS = {"JVASP-20425", "JVASP-16080"}
+
+
+def maybe_drop_known_test_leakage_ids(
+    df: pd.DataFrame,
+    dataset_name: str,
+    id_test: List[int],
+) -> List[int]:
+    """
+    Dataset-specific hygiene: for Supercon-3D only, remove specific known-leakage IDs
+    from the *test* split while preserving order of the remaining test indices.
+    """
+    if dataset_name.strip().lower() != "dft_3d":
+        return id_test
+    if "material_id" not in df.columns:
+        return id_test
+
+    kept: List[int] = []
+    dropped: List[str] = []
+    for idx in id_test:
+        jid = str(df.iloc[idx]["material_id"]).strip()
+        if jid in SUPERCON3D_DROP_FROM_TEST_IDS:
+            dropped.append(jid)
+        else:
+            kept.append(idx)
+
+    if dropped:
+        uniq = sorted(set(dropped))
+        print(
+            f"⚠️  Supercon-3D leakage hygiene: removed {len(dropped)} test row(s) "
+            f"({len(uniq)} unique IDs) from test split: {uniq}"
+        )
+    return kept
+
+
+def purge_stale_leakage_artifacts(out_dir: Path, dataset_name: str) -> None:
+    """
+    If outputs already exist from a previous run, ensure the leakage IDs' POSCAR files
+    are not lingering in the output directory.
+    """
+    if dataset_name.strip().lower() != "dft_3d":
+        return
+    for jid in SUPERCON3D_DROP_FROM_TEST_IDS:
+        f = out_dir / jid  # POSCAR filenames are bare JIDs in this pipeline
+        if f.exists():
+            try:
+                f.unlink()
+                print(f"⚠️  Removed stale crystal file: {f}")
+            except Exception as e:
+                print(f"⚠️  Could not remove stale crystal file {f}: {e}")
 
 
 def canonicalise(pmg_struct: Structure, symprec: float = 0.1):
@@ -384,11 +447,19 @@ def main(argv: Optional[List[str]] = None) -> None:  # entry-point
         test_ratio=args.test_ratio,
         seed=args.seed,
     )
-    print(f"Split sizes  train:{len(id_train)}  val:{len(id_val)}  test:{len(id_test)}")
+    print(f"Split sizes (pre-hygiene)  train:{len(id_train)}  val:{len(id_val)}  test:{len(id_test)}")
+
+    # 2b) Supercon-3D leakage hygiene: remove specified IDs from test only (keep order)
+    id_test = maybe_drop_known_test_leakage_ids(df, dataset_name=args.dataset, id_test=id_test)
+    print(f"Split sizes (post-hygiene) train:{len(id_train)}  val:{len(id_val)}  test:{len(id_test)}")
 
     # 3) Dispatch to the requested factory
+    out_dir = Path(args.output)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    purge_stale_leakage_artifacts(out_dir, dataset_name=args.dataset)
+
     factory_cls = FACTORY_REGISTRY[args.model]
-    factory = factory_cls(Path(args.output), args.target_key)
+    factory = factory_cls(out_dir, args.target_key)
     factory.write_outputs(df, id_train, id_val, id_test)
 
 
