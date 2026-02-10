@@ -21,10 +21,21 @@ export WANDB_DISABLED=true
 export WANDB_ANONYMOUS=allow
 source scripts/wandb_api_key.sh
 
+SECONDS=0
+start_iso="$(date -Iseconds)"
+
 python -u -m cdvae.run data=supercon expname=supercon \
 	model.num_noise_level=1 \
 	train.pl_trainer.gpus=0 \
 	model.predict_property=True \
+
+elapsed="$SECONDS"
+end_iso="$(date -Iseconds)"
+
+printf "Start: %s\nEnd:   %s\nElapsed: %ds (%.2f min, %.2f hr)\n" \
+  "$start_iso" "$end_iso" "$elapsed" \
+  "$(awk "BEGIN{print $elapsed/60}")" \
+  "$(awk "BEGIN{print $elapsed/3600}")"
 
 echo "Done"
 

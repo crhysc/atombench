@@ -15,6 +15,9 @@ export HYDRA_FULL_ERROR="1"
 export WABDB_DIR="${ABS_PATH%/}/job_runs/flowmm_benchmark_alex/outputs/wandb_outputs"
 export FLOWMM_RUN_ROOT="${ABS_PATH%/}/job_runs/flowmm_benchmark_alex/outputs"
 
+SECONDS=0
+start_iso="$(date -Iseconds)"
+
 # commands
 nvidia-smi
 cd models/flowmm/
@@ -30,6 +33,12 @@ python -u -m scripts_model.run \
 
 echo "Done"
 
+elapsed="$SECONDS"
+end_iso="$(date -Iseconds)"
 
+printf "Start: %s\nEnd:   %s\nElapsed: %ds (%.2f min, %.2f hr)\n" \
+  "$start_iso" "$end_iso" "$elapsed" \
+  "$(awk "BEGIN{print $elapsed/60}")" \
+  "$(awk "BEGIN{print $elapsed/3600}")"
 
 	

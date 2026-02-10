@@ -42,6 +42,8 @@ if [[ ! -d "${MODEL_PATH}/.hydra" ]]; then
   exit 1
 fi
 
+SECONDS=0
+start_iso="$(date -Iseconds)"
 
 echo "running inference"
 python models/cdvae/scripts/evaluate.py \
@@ -50,5 +52,14 @@ python models/cdvae/scripts/evaluate.py \
     --num_evals 1 \
     --force_atom_types \
     --force_num_atoms
+
+elapsed="$SECONDS"
+end_iso="$(date -Iseconds)"
+
+printf "Start: %s\nEnd:   %s\nElapsed: %ds (%.2f min, %.2f hr)\n" \
+  "$start_iso" "$end_iso" "$elapsed" \
+  "$(awk "BEGIN{print $elapsed/60}")" \
+  "$(awk "BEGIN{print $elapsed/3600}")"
+
 
 echo "Done" 

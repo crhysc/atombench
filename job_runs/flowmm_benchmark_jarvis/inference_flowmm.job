@@ -34,6 +34,10 @@ subdir="$NAME_OF_SUBDIRECTORY_AT_CHECKPOINT"
 slope="$SLOPE_OF_INFERENCE_ANTI_ANNEALING"
 
 # commands
+
+SECONDS=0
+start_iso="$(date -Iseconds)"
+
 nvidia-smi
 bash "${ROOT}/models/flowmm/create_env_file.sh"
 
@@ -43,4 +47,12 @@ python "${ROOT}/models/flowmm/scripts_model/evaluate.py" consolidate \
   "${ckpt}" --subdir "${subdir}"
 
 echo "Done"
+
+elapsed="$SECONDS"
+end_iso="$(date -Iseconds)"
+
+printf "Start: %s\nEnd:   %s\nElapsed: %ds (%.2f min, %.2f hr)\n" \
+  "$start_iso" "$end_iso" "$elapsed" \
+  "$(awk "BEGIN{print $elapsed/60}")" \
+  "$(awk "BEGIN{print $elapsed/3600}")"
 
