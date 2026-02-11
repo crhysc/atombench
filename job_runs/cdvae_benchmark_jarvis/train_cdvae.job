@@ -12,6 +12,7 @@ conda activate cdvae
 nvidia-smi
 
 unset PROJECT_ROOT
+bash -lc 'mkdir -p scripts; printf "#!/bin/bash\nexport ABS_PATH=\"%s\"\n" "$(pwd)" > scripts/absolute_path.sh'
 source scripts/absolute_path.sh
 export PROJECT_ROOT="${ABS_PATH%/}/models/cdvae"
 export HYDRA_JOBS="${ABS_PATH%/}/job_runs/cdvae_benchmark_jarvis/hydra_outputs"
