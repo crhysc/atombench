@@ -8,6 +8,11 @@ __pycache__/
 
 output_files/
 
+
+tc_supercon/JVASP*
+alexandria/agm*
+
+
 # Distribution / packaging
 .Python
 build/
