@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 for dir in */
 	do cd "$dir"
 		rm -rf distribution*.pdf metrics.json
