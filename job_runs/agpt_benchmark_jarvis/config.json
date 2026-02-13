@@ -22,7 +22,6 @@
     "chem_info": "formula",
     "max_seq_length": 512,
     "eval_steps": 300,
-    "eval_strategy": "steps",
     "dtype": null,
     "load_in_4bit": true,
     "instruction": "Below is a superconducting transition temperature.",
