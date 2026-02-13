@@ -22,6 +22,8 @@
     "chem_info": "formula",
     "max_seq_length": 512,
     "dtype": null,
+    "eval_steps": 300,
+    "eval_strategy": "steps",
     "load_in_4bit": true,
     "instruction": "Below is a superconducting transition temperature.",
     "alpaca_prompt": "### Instruction:\n{}\n### Input:\n{}\n### Output:\n{}",
