@@ -97,12 +97,12 @@ export ABS_PATH="/path/to/this/repository"
 #### Step 2: Activate the `Snakemake` pipeline to recompute the benchmarks
 As mentioned previously, we use an automated pipeline to compute these benchmarks. After the previous setup steps have been completed, run the pipeline using the following command:
 ```bash
-snakemake -p --verbose all --cores all
+snakemake -p --verbose all --cores 1
 ```
 
 If a job fails and you want the underlying error output (rather than only "job failed"), rerun with:
 ```bash
-snakemake -p --verbose --show-failed-logs all --cores all
+snakemake -p --verbose --show-failed-logs all --cores 1
 ```
 
 If the failure occurs during environment creation, you can also run the environment job directly to see the full error output:
