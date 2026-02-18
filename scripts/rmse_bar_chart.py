@@ -56,7 +56,12 @@ def infer_model(name: str) -> str:
     return "Other"
 
 # Try preferred RMSE key; fallback to a scalar RMSE if present
-rmse_candidates = ["RMSE.AtomGen", "RMSE"]  # second handles legacy flat values
+rmse_candidates = [
+    "RMSE.AtomGen.mean_cartesian_rms_angstrom",
+    "RMSE.AtomGen.mean_normalized_cartesian_rms",
+    "RMSE.AtomGen",
+    "RMSE",
+]  # last handles legacy flat values
 for cand in rmse_candidates:
     if cand in df.columns:
         rmse_col = cand
@@ -132,3 +137,4 @@ style_axes(
 out_path = ROOT / 'rmse_bar_chart.png'
 plt.savefig(out_path, dpi=300)
 plt.close(fig)
+
