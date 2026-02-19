@@ -26,5 +26,7 @@
     "load_in_4bit": true,
     "instruction": "Below is a superconducting transition temperature.",
     "alpaca_prompt": "### Instruction:\n{}\n### Input:\n{}\n### Output:\n{}",
-    "output_prompt": "Generate a correct corresponding bulk crystal POSCAR with lattice lengths, angles, coordinates and atom types."
+    "output_prompt": "Generate a correct corresponding bulk crystal POSCAR with lattice lengths, angles, coordinates and atom types.",
+    "logging_steps": 500,
+    "save_steps": 500
 }
