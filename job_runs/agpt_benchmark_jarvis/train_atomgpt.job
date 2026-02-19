@@ -15,4 +15,73 @@ python models/atomgpt/atomgpt/inverse_models/inverse_models.py \
 	--config_name job_runs/agpt_benchmark_jarvis/config.json
 
 mv AI* job_runs/agpt_benchmark_jarvis/
+# --- JANK HOTFIX: drop bad IDs from AtomGPT benchmark CSVs so ID-sets match ---
+BAD_IDS=("JVASP-135677" "JVASP-311")
 
+python - <<'PY'
+from pathlib import Path
+import csv, os
+
+root = Path("job_runs/agpt_benchmark_jarvis").resolve()
+bad = {"JVASP-135677", "JVASP-311"}
+
+def looks_like_benchmark_csv(fieldnames):
+    if not fieldnames:
+        return False, None
+    lower = [f.strip().lower() for f in fieldnames]
+    need = {"id", "target", "prediction"}
+    if not need.issubset(set(lower)):
+        return False, None
+    # map canonical -> actual column name (preserve original casing)
+    idx = {name.strip().lower(): name for name in fieldnames}
+    return True, idx["id"]
+
+n_files = 0
+n_rows_dropped = 0
+
+for p in root.rglob("*.csv"):
+    try:
+        with p.open("r", newline="", encoding="utf-8", errors="replace") as fh:
+            reader = csv.DictReader(fh)
+            ok, id_col = looks_like_benchmark_csv(reader.fieldnames)
+            if not ok:
+                continue
+
+            rows_kept = []
+            dropped_here = 0
+            for row in reader:
+                rid = (row.get(id_col) or "").strip()
+                if rid in bad:
+                    dropped_here += 1
+                else:
+                    rows_kept.append(row)
+
+        if dropped_here > 0:
+            tmp = p.with_suffix(p.suffix + ".tmp")
+            bak = p.with_suffix(p.suffix + ".bak")
+            # backup original once
+            if not bak.exists():
+                try:
+                    p.replace(bak)
+                except Exception:
+                    # if replace fails (e.g., cross-filesystem), just copy content via rename fallback
+                    import shutil
+                    shutil.copy2(p, bak)
+
+            with tmp.open("w", newline="", encoding="utf-8") as out:
+                writer = csv.DictWriter(out, fieldnames=reader.fieldnames)
+                writer.writeheader()
+                writer.writerows(rows_kept)
+
+            os.replace(tmp, p)  # atomic swap
+            print(f"[hotfix] {p}: dropped {dropped_here} bad-id row(s); backup at {bak.name}")
+
+            n_files += 1
+            n_rows_dropped += dropped_here
+
+    except Exception as e:
+        print(f"[hotfix][WARN] Skipped {p} due to error: {e}")
+
+print(f"[hotfix] done. touched {n_files} file(s), dropped {n_rows_dropped} row(s).")
+PY
+# --- end hotfix ---
