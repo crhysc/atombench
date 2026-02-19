@@ -90,8 +90,8 @@ stages:
       size: 16897
     - path: scripts/run_atomgpt_data.sh
       hash: md5
-      md5: 4d3c61b0efe5cbde7f58747998cd96da
-      size: 288
+      md5: 4c172b1cb154d495ecf79908f8adce66
+      size: 275
     outs:
     - path: atomgpt_data
       hash: md5
