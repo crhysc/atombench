@@ -14,7 +14,6 @@ nvidia-smi
 python models/atomgpt/atomgpt/inverse_models/inverse_models.py \
 	--config_name job_runs/agpt_benchmark_jarvis/config.json
 
-mv AI* job_runs/agpt_benchmark_jarvis/
 # --- JANK HOTFIX: drop bad IDs from AtomGPT benchmark CSVs so ID-sets match ---
 BAD_IDS=("JVASP-135677" "JVASP-311")
 

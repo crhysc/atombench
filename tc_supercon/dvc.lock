@@ -56,8 +56,8 @@ stages:
       size: 16897
     - path: scripts/run_cdvae_data.sh
       hash: md5
-      md5: 567e2cc919cda29c75c08fdbf2c119d2
-      size: 595
+      md5: ec5ad21259745d1679645d369b668966
+      size: 540
     outs:
     - path: ../models/cdvae/data/supercon
       hash: md5
@@ -90,8 +90,8 @@ stages:
       size: 16897
     - path: scripts/run_atomgpt_data.sh
       hash: md5
-      md5: 4c172b1cb154d495ecf79908f8adce66
-      size: 275
+      md5: 7bc8e1f952d5a89572f665856dd4f8e0
+      size: 233
     outs:
     - path: atomgpt_data
       hash: md5
