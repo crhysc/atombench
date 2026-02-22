@@ -6,7 +6,7 @@ rule train_cdvae_jarvis:
         "jarvis_data.created"
     shell:
         """
-        sbatch --wait -p nvl job_runs/cdvae_benchmark_jarvis/train_cdvae.job
+        sbatch --wait -p nvl --time=08:00:00 job_runs/cdvae_benchmark_jarvis/train_cdvae.job
         """
 
 rule infer_cdvae_jarvis:
@@ -18,7 +18,7 @@ rule infer_cdvae_jarvis:
         "cdvae_benchmark_jarvis.trained"
     shell:
         """
-        sbatch --wait -p nvl job_runs/cdvae_benchmark_jarvis/inference_cdvae.job
+        sbatch --wait -p nvl --time=08:00:00 job_runs/cdvae_benchmark_jarvis/inference_cdvae.job
         """
 
 rule benchmark_cdvae_jarvis:
@@ -32,5 +32,5 @@ rule benchmark_cdvae_jarvis:
 
     shell:
         """
-        sbatch --wait -p nvl job_runs/cdvae_benchmark_jarvis/benchmark_cdvae.job
+        sbatch --wait -p nvl --time=08:00:00 job_runs/cdvae_benchmark_jarvis/benchmark_cdvae.job
         """
