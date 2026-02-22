@@ -4,7 +4,6 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
 
-set -euo pipefail
 
 eval "$(conda shell.bash hook)"
 source scripts/wandb_api_key.sh
@@ -16,6 +15,7 @@ export HYDRA_FULL_ERROR="1"
 ROOT="${ABS_PATH%/}"
 export WABDB_DIR="${ROOT}/job_runs/flowmm_benchmark_jarvis/outputs/wandb_outputs"
 export FLOWMM_RUN_ROOT="${ROOT}/job_runs/flowmm_benchmark_jarvis/outputs"
+export PROJECT_ROOT="${ABS_PATH%/}/job_runs/flowmm_benchmark_jarvis/outputs"
 
 ckpt="$(find "${FLOWMM_RUN_ROOT}" -type f -path '*/checkpoints/*.ckpt' 2>/dev/null | xargs -r ls -1 -t 2>/dev/null | head -n1)"
 if [[ -z "${ckpt}" ]]; then
