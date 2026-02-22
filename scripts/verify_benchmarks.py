@@ -4,7 +4,7 @@ import csv
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Set
 
 import numpy as np
 from jarvis.io.vasp.inputs import Poscar
@@ -98,20 +98,55 @@ def find_benchmark_csv(dir_path: Path) -> Optional[Path]:
     candidates: List[Tuple[float, Path]] = []
     for p, _, files in os.walk(dir_path):
         for f in files:
-            if f.lower().endswith(".csv"):
-                path = Path(p) / f
-                try:
-                    with path.open("r", newline="", encoding="utf-8", errors="replace") as fh:
-                        reader = csv.DictReader(fh)
-                        fields = [fn.strip().lower() for fn in (reader.fieldnames or [])]
-                        if {"id", "target", "prediction"}.issubset(set(fields)):
-                            candidates.append((path.stat().st_mtime, path))
-                except Exception:
-                    continue
+            fl = f.lower()
+            if not fl.endswith(".csv"):
+                continue
+            # Skip misses CSVs here; they are handled separately.
+            if fl.endswith(".misses.csv"):
+                continue
+            path = Path(p) / f
+            try:
+                with path.open("r", newline="", encoding="utf-8", errors="replace") as fh:
+                    reader = csv.DictReader(fh)
+                    fields = [fn.strip().lower() for fn in (reader.fieldnames or [])]
+                    if {"id", "target", "prediction"}.issubset(set(fields)):
+                        candidates.append((path.stat().st_mtime, path))
+            except Exception:
+                continue
     if not candidates:
         return None
     candidates.sort(key=lambda t: t[0], reverse=True)
     return candidates[0][1]
+
+def find_misses_csv_for_benchmark(benchmark_csv_path: Path) -> Optional[Path]:
+    """
+    For benchmark CSV .../<name>.csv, look for sibling .../<name>.misses.csv.
+    Returns path if it exists, else None.
+    """
+    candidate = benchmark_csv_path.with_name(
+        f"{benchmark_csv_path.stem}.misses{benchmark_csv_path.suffix}"
+    )
+    return candidate if candidate.exists() and candidate.is_file() else None
+
+def load_id_set(csv_path: Path) -> Set[str]:
+    """
+    Load a set of IDs from any CSV that has an 'id' column.
+    Used for *.misses.csv files.
+    """
+    ids: Set[str] = set()
+    with csv_path.open("r", newline="", encoding="utf-8", errors="replace") as fh:
+        reader = csv.DictReader(fh)
+        fieldnames = [fn.strip().lower() for fn in (reader.fieldnames or [])]
+        if "id" not in fieldnames:
+            raise ValueError(f"No 'id' column found in {csv_path}")
+        # Map normalized lowercase headers back to actual row keys
+        keymap = {fn.strip().lower(): fn for fn in (reader.fieldnames or [])}
+        id_key = keymap["id"]
+        for row in reader:
+            _id = str(row.get(id_key, "")).strip()
+            if _id:
+                ids.add(_id)
+    return ids
 
 def load_id_to_target(csv_path: Path) -> Dict[str, Tuple]:
     """
@@ -155,7 +190,8 @@ def group_benchmarks(root: Path):
 def compare_group(dataset_key: str, items: List[Tuple[str, Path]], show_diff: int) -> bool:
     """
     Compare ID sets across CSVs for a dataset group.
-    Return False **only if ID sets mismatch**.
+    Return False **only if ID sets mismatch** (unless all missing IDs are accounted for
+    in the corresponding *.misses.csv files).
     Structural TARGET differences are reported as WARNINGS but do not cause failure.
     """
     pretty_name = "alexandria" if dataset_key == "alex" else "jarvis"
@@ -163,41 +199,81 @@ def compare_group(dataset_key: str, items: List[Tuple[str, Path]], show_diff: in
         print(f"[INFO] Only {len(items)} benchmark found for {pretty_name}; skipping consensus check.")
         return True  # not an ID mismatch
 
-    # Load mappings
+    # Load mappings (+ optional misses IDs)
     loaded = []
     for label, path in items:
         try:
             mapping = load_id_to_target(path)
-            loaded.append((label, path, mapping))
+            misses_path = find_misses_csv_for_benchmark(path)
+            misses_ids: Set[str] = set()
+            if misses_path is not None:
+                try:
+                    misses_ids = load_id_set(misses_path)
+                except Exception as e:
+                    print(f"[WARN] Failed to read misses CSV {misses_path}: {e}", file=sys.stderr)
+            loaded.append((label, path, mapping, misses_path, misses_ids))
         except Exception as e:
             # Per request: only fail on ID mismatch; treat read errors as warnings.
             print(f"[WARN] Failed to read {path}: {e}", file=sys.stderr)
             return True
 
-    # Compare ID sets
-    id_sets = [set(m.keys()) for _, _, m in loaded]
-    base_ids = id_sets[0]
-    ids_match = all(s == base_ids for s in id_sets[1:])
-    if not ids_match:
+    # Compare ID sets, allowing missing IDs if listed in that benchmark's *.misses.csv
+    id_sets = [set(m.keys()) for _, _, m, _, _ in loaded]
+    union_ids = set().union(*id_sets)
+
+    any_unaccounted_missing = False
+    any_accounted_missing = False
+
+    # First pass: determine whether mismatches are fully accounted for by misses files
+    for label, path, mapping, misses_path, misses_ids in loaded:
+        present_ids = set(mapping.keys())
+        missing = union_ids - present_ids
+        if not missing:
+            continue
+        covered = missing & misses_ids
+        uncovered = missing - misses_ids
+        if covered:
+            any_accounted_missing = True
+        if uncovered:
+            any_unaccounted_missing = True
+
+    if any_unaccounted_missing:
         print(f"[MISMATCH] ID sets differ for {pretty_name}.")
-        union_ids = set().union(*id_sets)
-        for label, path, mapping in loaded:
-            missing = union_ids - set(mapping.keys())
-            extra = set(mapping.keys()) - union_ids  # should be empty
-            if missing:
-                sample = ", ".join(sorted(list(missing))[:show_diff])
-                print(f"  - {label}: missing {len(missing)} IDs (e.g., {sample})")
+        for label, path, mapping, misses_path, misses_ids in loaded:
+            present_ids = set(mapping.keys())
+            missing = union_ids - present_ids
+            covered = missing & misses_ids
+            uncovered = missing - misses_ids
+            extra = present_ids - union_ids  # should be empty
+
+            if uncovered:
+                sample = ", ".join(sorted(list(uncovered))[:show_diff])
+                print(f"  - {label}: missing {len(uncovered)} IDs NOT accounted for in misses CSV "
+                      f"(e.g., {sample})")
+            if covered:
+                sample = ", ".join(sorted(list(covered))[:show_diff])
+                if misses_path is not None:
+                    print(f"  - {label}: missing {len(covered)} IDs accounted for by "
+                          f"{misses_path.name} (e.g., {sample})")
+                else:
+                    print(f"  - {label}: missing {len(covered)} IDs accounted for by misses CSV "
+                          f"(e.g., {sample})")
             if extra:
                 sample = ", ".join(sorted(list(extra))[:show_diff])
                 print(f"  - {label}: has {len(extra)} unexpected IDs (e.g., {sample})")
-        return False  # <-- only hard failure condition
+        return False  # <-- only hard failure condition (unaccounted missing IDs)
 
-    # If IDs match, compare TARGET structures for awareness (WARN only)
-    base_label, base_path, base_map = loaded[0]
+    # If there were missing IDs but all were accounted for in misses CSVs, warn-only
+    if any_accounted_missing:
+        print(f"[INFO] ID set differences for {pretty_name} are fully accounted for by *.misses.csv files.")
+
+    # Compare TARGET structures for awareness (WARN only) on common IDs across benchmark CSVs
+    common_ids = set.intersection(*id_sets) if id_sets else set()
+    base_label, base_path, base_map, _, _ = loaded[0]
     mismatches = []
-    for _id in sorted(base_ids):
+    for _id in sorted(common_ids):
         base_sig = base_map[_id]
-        for label, path, mapping in loaded[1:]:
+        for label, path, mapping, _, _ in loaded[1:]:
             if mapping.get(_id) != base_sig:
                 mismatches.append((_id, base_label, base_path, label, path))
                 if len(mismatches) >= show_diff:
@@ -213,10 +289,17 @@ def compare_group(dataset_key: str, items: List[Tuple[str, Path]], show_diff: in
             print(f"  - ID {_id}: {b_label} ({b_path.name}) != {l_label} ({l_path.name})",
                   file=sys.stderr)
     else:
-        print(f"[OK] IDs and TARGET structures match for {pretty_name} "
-              f"(rounded to 1 decimal, species-order-insensitive).")
+        # Keep original success wording when exact IDs match; otherwise note misses accounting.
+        exact_ids_match = all(s == id_sets[0] for s in id_sets[1:]) if id_sets else True
+        if exact_ids_match:
+            print(f"[OK] IDs and TARGET structures match for {pretty_name} "
+                  f"(rounded to 1 decimal, species-order-insensitive).")
+        else:
+            print(f"[OK] TARGET structures match on common IDs for {pretty_name} "
+                  f"(rounded to 1 decimal, species-order-insensitive); "
+                  f"ID differences accounted for by *.misses.csv files.")
 
-    return True  # success since IDs matched
+    return True  # success since IDs matched or were fully accounted for by misses CSVs
 
 def main():
     ap = argparse.ArgumentParser(
@@ -256,4 +339,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
