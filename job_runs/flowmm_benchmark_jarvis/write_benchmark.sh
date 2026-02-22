@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 eval "$(conda shell.bash hook)"
 conda activate flowmm
 source scripts/absolute_path.sh
