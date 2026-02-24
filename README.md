@@ -43,7 +43,7 @@ FlowMM's environment setup is very memory-hungry and can potentially cause OOM e
 ```bash
 conda install -n atombench -c conda-forge mamba -y
 ```
-NOTE: It will take 20 minutes to and hour to setup the FlowMM `conda` environment.
+NOTE: It may take 20 minutes to and hour to setup the FlowMM `conda` environment.
 
 #### Step 6: Download Python dependencies
 This repository recomputes the AtomBench benchmarks using a semi-automated `Snakemake` pipeline. For more information about `Snakemake`, visit their [documentation](https://snakemake.readthedocs.io/en/stable/) site. Moreover, we use `uv` to speed up downstream package installation, and we use `DVC` to automate dataset preprocessing.
