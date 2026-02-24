@@ -67,9 +67,6 @@ pip install uv; uv pip install snakemake dvc average-minimum-distance jarvis-too
   If `models/` is empty or incomplete, you likely skipped  
   `git submodule update --init --recursive`.
 
-- **OOM or extremely slow environment solves**  
-  FlowMM’s environment is large. This is expected. Use `mamba` (not `conda`) and be patient—20–60 minutes is normal on shared systems.
-
 - **Snakemake hides the real error**  
   When something fails, rerun with `--show-failed-logs` or execute the failing job script directly. The actual issue is almost always in the job log.
 
