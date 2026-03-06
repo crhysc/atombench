@@ -61,10 +61,16 @@ def style_axes(ax, ylabel: str, title: str):
     ax.set_xlabel("", fontsize=16)
     ax.set_ylabel(ylabel, fontsize=16)
     ax.set_title(title, fontsize=22)
-    ax.legend(title="Lattice Parameter", title_fontsize=15, fontsize=15)
+    ax.legend(
+        title="Lattice Parameter",
+        title_fontsize=15,
+        fontsize=15,
+        loc="upper right",
+        bbox_to_anchor=(1.0, 1.10),
+        borderaxespad=0.2,
+    )
     plt.xticks(rotation=30, ha="right", fontsize=13)
     plt.yticks(fontsize=15)
-
 
 def add_group_counts(
     ax,
