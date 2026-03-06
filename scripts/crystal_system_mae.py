@@ -65,12 +65,13 @@ def style_axes(ax, ylabel: str, title: str):
         title="Lattice Parameter",
         title_fontsize=15,
         fontsize=15,
-        loc="upper right",
-        bbox_to_anchor=(1.0, 1.10),
-        borderaxespad=0.2,
+        loc="center left",
+        bbox_to_anchor=(0.02, 0.66),
+        borderaxespad=0.0,
     )
     plt.xticks(rotation=30, ha="right", fontsize=13)
     plt.yticks(fontsize=15)
+
 
 def add_group_counts(
     ax,
@@ -318,7 +319,7 @@ def main():
     plt.close(fig)
 
     # ── JSON: everything shown in the graphs ─────────────────────────
-    systems = list(g.index)  # lowercase, ordered for plotting
+    systems = list(g.index)
     systems_pretty = [s.capitalize() for s in systems]
 
     crystal_system_metrics = []
