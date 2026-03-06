@@ -56,6 +56,7 @@ ANG_GRANITE = ["#6A5560", "#B08A97", "#E7D6DC"]
 
 PNG_DPI = 500
 
+
 def style_axes(ax, ylabel: str, title: str):
     ax.set_xlabel("", fontsize=16)
     ax.set_ylabel(ylabel, fontsize=16)
@@ -63,6 +64,7 @@ def style_axes(ax, ylabel: str, title: str):
     ax.legend(title="Lattice Parameter", title_fontsize=15, fontsize=15)
     plt.xticks(rotation=30, ha="right", fontsize=13)
     plt.yticks(fontsize=15)
+
 
 def add_group_counts(
     ax,
@@ -95,6 +97,7 @@ def add_group_counts(
             fontsize=fontsize,
         )
 
+
 @lru_cache(maxsize=20000)
 def reduced_structure_from_poscar_text(poscar_text: str) -> Structure:
     s = Structure.from_str(poscar_text.replace("\\n", "\n"), fmt="poscar")
@@ -102,12 +105,14 @@ def reduced_structure_from_poscar_text(poscar_text: str) -> Structure:
     s = s.get_reduced_structure(reduction_algo="niggli")
     return s
 
+
 @lru_cache(maxsize=20000)
 def niggli_params_from_poscar_text(poscar_text: str):
     s = reduced_structure_from_poscar_text(poscar_text)
     a, b, c = s.lattice.abc
     alpha, beta, gamma = s.lattice.angles
     return float(a), float(b), float(c), float(alpha), float(beta), float(gamma)
+
 
 def crystal_system_from_structure(s: Structure, symprec: float) -> str | None:
     try:
@@ -118,6 +123,7 @@ def crystal_system_from_structure(s: Structure, symprec: float) -> str | None:
         return cs if cs in CRYSYS_ALL else None
     except Exception:
         return None
+
 
 def find_prediction_csv(exp_dir: Path) -> Path | None:
     candidates = []
@@ -136,6 +142,7 @@ def find_prediction_csv(exp_dir: Path) -> Path | None:
         except Exception:
             continue
     return None
+
 
 def load_rows_from_exp(exp_dir: Path, symprec: float) -> list[dict]:
     csv_path = find_prediction_csv(exp_dir)
@@ -179,11 +186,13 @@ def load_rows_from_exp(exp_dir: Path, symprec: float) -> list[dict]:
     print(f"✓ {exp_dir.name}: loaded {len(out)} rows from {csv_path.name}", file=sys.stderr)
     return out
 
+
 def _round6(x: float) -> float:
     try:
         return float(round(float(x), 6))
     except Exception:
         return float("nan")
+
 
 def main():
     ap = argparse.ArgumentParser(
@@ -217,24 +226,36 @@ def main():
 
     d = pd.DataFrame(rows)
 
-    # Filter by kmin, then exclude triclinic from plotting/reporting
+    # Filter by kmin, then keep only plotted systems in explicit symmetry order
     counts = d["crysys"].value_counts()
-    keep = counts[counts >= int(args.kmin)].index.tolist()
-    keep = [c for c in CRYSYS_PLOT_ORDER if c in keep]
+    keep = [cs for cs in CRYSYS_PLOT_ORDER if counts.get(cs, 0) >= int(args.kmin)]
     d = d[d["crysys"].isin(keep)].copy()
 
     if d.empty:
         raise SystemExit(f"After kmin={args.kmin}, no plotted crystal systems remain.")
 
-    # Mean MAE per system (pooled), ordered most symmetric -> least symmetric
+    # Force crystal-system ordering explicitly for plotting/reporting
+    d["crysys"] = pd.Categorical(
+        d["crysys"],
+        categories=CRYSYS_PLOT_ORDER,
+        ordered=True,
+    )
+    d = d.sort_values("crysys")
+
+    # Mean MAE per system (pooled), preserving explicit order
     g = (
-        d.groupby("crysys")[["a","b","c","alpha","beta","gamma"]]
+        d.groupby("crysys", sort=False)[["a", "b", "c", "alpha", "beta", "gamma"]]
          .mean()
          .reindex(keep)
     )
 
-    # Counts per system
-    g_counts = d["crysys"].value_counts().reindex(g.index).astype(int)
+    # Counts per system in the same explicit order
+    g_counts = (
+        d.groupby("crysys", sort=False)
+         .size()
+         .reindex(keep)
+         .astype(int)
+    )
 
     # Save CSV
     summary = g.copy()
@@ -247,22 +268,22 @@ def main():
     labels = list(plot_df.index)
 
     length_cols = [AX_LABEL_MAP["a"], AX_LABEL_MAP["b"], AX_LABEL_MAP["c"]]
-    angle_cols  = [AX_LABEL_MAP["alpha"], AX_LABEL_MAP["beta"], AX_LABEL_MAP["gamma"]]
+    angle_cols = [AX_LABEL_MAP["alpha"], AX_LABEL_MAP["beta"], AX_LABEL_MAP["gamma"]]
 
     counts_arr = g_counts.to_numpy(dtype=int)
-    length_tops = g[["a","b","c"]].max(axis=1).to_numpy(dtype=float)
-    angle_tops  = g[["alpha","beta","gamma"]].max(axis=1).to_numpy(dtype=float)
+    length_tops = g[["a", "b", "c"]].max(axis=1).to_numpy(dtype=float)
+    angle_tops = g[["alpha", "beta", "gamma"]].max(axis=1).to_numpy(dtype=float)
 
     # Titles (3 lines, symbols)
     title_len = (
-        "Mean Lattice MAE by Crystal System\n"
+        "Mean Absolute Error by Crystal System\n"
         "Results Pooled from All 6 Benchmarks\n"
-        "Lengths (Å)"
+        "Lattice Lengths (Å)"
     )
     title_ang = (
-        "Mean Lattice MAE by Crystal System\n"
+        "Mean Absolute Error by Crystal System\n"
         "Results Pooled from All 6 Benchmarks\n"
-        "Angles (°)"
+        "Lattice Angles (°)"
     )
 
     # ── Lengths chart ────────────────────────────────────────────────
@@ -290,7 +311,7 @@ def main():
     plt.savefig(outdir / "crystal_system_mae_bar_chart_angles.png", dpi=PNG_DPI, bbox_inches="tight")
     plt.close(fig)
 
-    # ── JSON: everything shown in the graphs ──────────────────────────
+    # ── JSON: everything shown in the graphs ─────────────────────────
     systems = list(g.index)  # lowercase, ordered for plotting
     systems_pretty = [s.capitalize() for s in systems]
 
@@ -301,11 +322,11 @@ def main():
             "crystal_system_pretty": cs.capitalize(),
             "n_reconstructions": int(g_counts.loc[cs]),
             "mae": {
-                "a":     _round6(g.loc[cs, "a"]),
-                "b":     _round6(g.loc[cs, "b"]),
-                "c":     _round6(g.loc[cs, "c"]),
+                "a": _round6(g.loc[cs, "a"]),
+                "b": _round6(g.loc[cs, "b"]),
+                "c": _round6(g.loc[cs, "c"]),
                 "alpha": _round6(g.loc[cs, "alpha"]),
-                "beta":  _round6(g.loc[cs, "beta"]),
+                "beta": _round6(g.loc[cs, "beta"]),
                 "gamma": _round6(g.loc[cs, "gamma"]),
             }
         })
@@ -321,9 +342,17 @@ def main():
                 "lengths": title_len,
                 "angles": title_ang,
             },
-            "palette_hex": {"lengths": LEN_GRANITE, "angles": ANG_GRANITE},
+            "palette_hex": {
+                "lengths": LEN_GRANITE,
+                "angles": ANG_GRANITE,
+            },
             "png_dpi": PNG_DPI,
-            "note": "Values are mean absolute errors computed from Niggli-reduced primitive cells; crystal system labels computed on conventional standardized structures derived from the same canonicalized targets. Plot order is most symmetric to least symmetric, excluding triclinic.",
+            "note": (
+                "Values are mean absolute errors computed from Niggli-reduced primitive cells; "
+                "crystal system labels computed on conventional standardized structures derived "
+                "from the same canonicalized targets. Plot order is most symmetric to least "
+                "symmetric, excluding triclinic."
+            ),
         },
         "plots": {
             "lengths": {
@@ -342,7 +371,7 @@ def main():
                 "n": [int(g_counts.loc[cs]) for cs in systems],
                 "series": {
                     "alpha": [_round6(g.loc[cs, "alpha"]) for cs in systems],
-                    "beta":  [_round6(g.loc[cs, "beta"]) for cs in systems],
+                    "beta": [_round6(g.loc[cs, "beta"]) for cs in systems],
                     "gamma": [_round6(g.loc[cs, "gamma"]) for cs in systems],
                 },
                 "y_label": "Mean Absolute Error (°)",
@@ -359,6 +388,7 @@ def main():
     print(f"✓ wrote {outdir/'crystal_system_mae_bar_chart_abc.png'}", file=sys.stderr)
     print(f"✓ wrote {outdir/'crystal_system_mae_bar_chart_angles.png'}", file=sys.stderr)
     print(f"✓ wrote {outdir/'crystal_mae_metrics.json'}", file=sys.stderr)
+
 
 if __name__ == "__main__":
     main()
