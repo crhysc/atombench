@@ -243,14 +243,14 @@ def main():
 
     # Titles (3 lines, symbols)
     title_len = (
-        "Mean Absolute Error by Crystal System\n"
+        "Mean Lattice MAE by Crystal System\n"
         "Results Pooled from All 6 Benchmarks\n"
-        "Lattice Lengths (Å)"
+        "Lengths (Å)"
     )
     title_ang = (
-        "Mean Absolute Error by Crystal System\n"
+        "Mean Lattice MAE by Crystal System\n"
         "Results Pooled from All 6 Benchmarks\n"
-        "Lattice Angles (°)"
+        "Angles (°)"
     )
 
     # ── Lengths chart ────────────────────────────────────────────────
