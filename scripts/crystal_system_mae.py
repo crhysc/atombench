@@ -37,11 +37,13 @@ AX_LABEL_MAP = {
     "gamma": r"$\gamma$",
 }
 
-# Lengths: contrasty granite-ish blue/grey (dark → mid → light)
-LEN_GRANITE = ["#2F3E49", "#6C8492", "#B9C7D1"]
+# Lengths: brighter granite-ish blue/grey (dark → mid → light)
+LEN_GRANITE = ["#4A6272", "#89A9BC", "#D6E3EC"]
 
-# Angles: same granite vibe, slightly redder / warmer (dark → mid → light)
-ANG_GRANITE = ["#3B3338", "#7E6E77", "#C9BCC3"]
+# Angles: same vibe, slightly warmer / redder and brighter (dark → mid → light)
+ANG_GRANITE = ["#6A5560", "#B08A97", "#E7D6DC"]
+
+PNG_DPI = 500
 
 def style_axes(ax, ylabel: str, title: str):
     ax.set_xlabel("", fontsize=16)
@@ -264,7 +266,7 @@ def main():
         fontsize=12,
     )
     fig.tight_layout()
-    plt.savefig(outdir / "crystal_system_mae_bar_chart_abc.png", dpi=300)
+    plt.savefig(outdir / "crystal_system_mae_bar_chart_abc.png", dpi=PNG_DPI, bbox_inches="tight")
     plt.close(fig)
 
     # ── Angles chart ─────────────────────────────────────────────────
@@ -273,7 +275,7 @@ def main():
     style_axes(ax, "Mean Absolute Error (°)", title_ang)
     add_group_counts(ax, counts_arr, angle_tops, labels=labels, fontsize=12)
     fig.tight_layout()
-    plt.savefig(outdir / "crystal_system_mae_bar_chart_angles.png", dpi=300)
+    plt.savefig(outdir / "crystal_system_mae_bar_chart_angles.png", dpi=PNG_DPI, bbox_inches="tight")
     plt.close(fig)
 
     # ── JSON: everything shown in the graphs ──────────────────────────
@@ -308,6 +310,7 @@ def main():
                 "angles": title_ang,
             },
             "palette_hex": {"lengths": LEN_GRANITE, "angles": ANG_GRANITE},
+            "png_dpi": PNG_DPI,
             "note": "Values are mean absolute errors computed from Niggli-reduced primitive cells; crystal system labels computed on conventional standardized structures derived from the same canonicalized targets.",
         },
         "plots": {
@@ -320,7 +323,7 @@ def main():
                     "c": [_round6(g.loc[cs, "c"]) for cs in systems],
                 },
                 "y_label": "Mean Absolute Error (Å)",
-                "output_png": "mae_bar_chart_abc.png",
+                "output_png": "crystal_system_mae_bar_chart_abc.png",
             },
             "angles": {
                 "x": systems_pretty,
@@ -331,7 +334,7 @@ def main():
                     "gamma": [_round6(g.loc[cs, "gamma"]) for cs in systems],
                 },
                 "y_label": "Mean Absolute Error (°)",
-                "output_png": "mae_bar_chart_angles.png",
+                "output_png": "crystal_system_mae_bar_chart_angles.png",
             },
         },
         "by_crystal_system": crystal_system_metrics,
