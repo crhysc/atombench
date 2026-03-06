@@ -20,7 +20,8 @@ rule all:
         "overlay_charts.created",
         "benchmarks.verified",
         "grid_charts.created",
-        "rmse_chart.made"
+        "rmse_chart.made",
+        "crystal_system_mae_charts.created"
 
 rule make_atomgpt_env:
     output:
@@ -138,6 +139,14 @@ rule make_grid_charts:
         """
         python scripts/grid_charts.py
         """
+
+rule make_crystal_system_mae_charts:
+    input:
+        "metrics.computed"
+    output:
+        touch("crystal_system_mae_charts.created")
+    shell:
+        "python scripts/crystal_system_mae.py --root job_runs --symprec 0.1 --kmin 10 --outdir ./figures"
 
 rule make_rmse_chart:
     input:
