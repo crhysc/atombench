@@ -18,7 +18,8 @@ import matplotlib.pyplot as plt
 from pymatgen.core import Structure
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
-CRYSYS_ORDER = [
+# All valid crystal systems for classification
+CRYSYS_ALL = [
     "triclinic",
     "monoclinic",
     "orthorhombic",
@@ -26,6 +27,16 @@ CRYSYS_ORDER = [
     "trigonal",
     "hexagonal",
     "cubic",
+]
+
+# Plot/report order: most symmetric -> least symmetric, excluding triclinic
+CRYSYS_PLOT_ORDER = [
+    "cubic",
+    "hexagonal",
+    "trigonal",
+    "tetragonal",
+    "orthorhombic",
+    "monoclinic",
 ]
 
 AX_LABEL_MAP = {
@@ -104,7 +115,7 @@ def crystal_system_from_structure(s: Structure, symprec: float) -> str | None:
         conv = sga.get_conventional_standard_structure()
         cs = SpacegroupAnalyzer(conv, symprec=symprec).get_crystal_system()
         cs = cs.lower() if isinstance(cs, str) else None
-        return cs if cs in CRYSYS_ORDER else None
+        return cs if cs in CRYSYS_ALL else None
     except Exception:
         return None
 
@@ -206,19 +217,20 @@ def main():
 
     d = pd.DataFrame(rows)
 
-    # Filter by kmin (not shown in title, but affects what’s plotted)
+    # Filter by kmin, then exclude triclinic from plotting/reporting
     counts = d["crysys"].value_counts()
     keep = counts[counts >= int(args.kmin)].index.tolist()
+    keep = [c for c in CRYSYS_PLOT_ORDER if c in keep]
     d = d[d["crysys"].isin(keep)].copy()
 
     if d.empty:
-        raise SystemExit(f"After kmin={args.kmin}, no crystal systems remain.")
+        raise SystemExit(f"After kmin={args.kmin}, no plotted crystal systems remain.")
 
-    # Mean MAE per system (pooled)
+    # Mean MAE per system (pooled), ordered most symmetric -> least symmetric
     g = (
         d.groupby("crysys")[["a","b","c","alpha","beta","gamma"]]
          .mean()
-         .reindex([c for c in CRYSYS_ORDER if c in keep])
+         .reindex(keep)
     )
 
     # Counts per system
@@ -262,7 +274,7 @@ def main():
         counts_arr,
         length_tops,
         labels=labels,
-        x_offsets={"Orthorhombic": 0.22},
+        x_offsets={},
         fontsize=12,
     )
     fig.tight_layout()
@@ -279,7 +291,7 @@ def main():
     plt.close(fig)
 
     # ── JSON: everything shown in the graphs ──────────────────────────
-    systems = list(g.index)  # lowercase (canonical)
+    systems = list(g.index)  # lowercase, ordered for plotting
     systems_pretty = [s.capitalize() for s in systems]
 
     crystal_system_metrics = []
@@ -311,7 +323,7 @@ def main():
             },
             "palette_hex": {"lengths": LEN_GRANITE, "angles": ANG_GRANITE},
             "png_dpi": PNG_DPI,
-            "note": "Values are mean absolute errors computed from Niggli-reduced primitive cells; crystal system labels computed on conventional standardized structures derived from the same canonicalized targets.",
+            "note": "Values are mean absolute errors computed from Niggli-reduced primitive cells; crystal system labels computed on conventional standardized structures derived from the same canonicalized targets. Plot order is most symmetric to least symmetric, excluding triclinic.",
         },
         "plots": {
             "lengths": {
